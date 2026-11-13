@@ -3,11 +3,12 @@ import { MotionConfig } from 'motion/react'
 import { AppProvider, loadSettings, useApp, type Settings as SettingsT } from '@/app/context'
 import { Shell } from '@/components/Shell'
 import { TitleBar } from '@/components/TitleBar'
-import { ErrorState, Loading, ToastProvider } from '@/components/ui'
+import { ErrorState, Loading, ToastProvider, useToast } from '@/components/ui'
 import { openDb, type Db } from '@/db'
 import { runDailyBackup } from '@/db/backup'
 import { notifyExpiring } from '@/lib/reminders'
 import { applyTheme, watchSystemTheme } from '@/lib/theme'
+import { checkForUpdate } from '@/lib/updater'
 import { Lock } from '@/screens/Lock'
 import { Beranda, Bisnis, Lunatopup } from '@/screens/Menus'
 import { Settings } from '@/screens/Settings'
@@ -83,11 +84,15 @@ export default function App() {
 /** Isi aplikasi setelah terbuka. Memasang kunci enkripsi, cadangan harian, dan pengingat. */
 function Ready({ initialKey }: { initialKey: CryptoKey | null }) {
   const { db, settings, setCryptoKey, route } = useApp()
+  const toast = useToast()
 
   useEffect(() => setCryptoKey(initialKey), [initialKey, setCryptoKey])
   useEffect(() => {
     runDailyBackup(db).catch(() => {})
     if (settings.notif) notifyExpiring(db, settings.warnDays).catch(() => {})
+    checkForUpdate()
+      .then((u) => u && toast(`Versi ${u.version} sudah tersedia. Pasang lewat Pengaturan.`))
+      .catch(() => {})
     // hanya saat aplikasi dibuka
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

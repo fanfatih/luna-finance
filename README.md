@@ -26,12 +26,20 @@ Dihitung saat ditampilkan, tidak disimpan. Contoh: saldo awal Rp1.000.000, akhir
 
 Uang utang-piutang dan setor/tarik modal tidak ikut dihitung sebagai profit.
 
-## Cara paling gampang: build lewat GitHub (tanpa install apa-apa)
+## Cara paling gampang: rilis lewat GitHub (tanpa install apa-apa)
 
-1. Upload folder ini ke repo GitHub (boleh private).
-2. Buka tab **Actions**, pilih **Build installer Windows**, klik **Run workflow**.
-3. Tunggu sekitar 10 sampai 15 menit. Unduh hasilnya di bagian **Artifacts** (`luna-finance-windows`), isinya file `.exe` installer.
-4. Jalankan installer. Windows SmartScreen akan memperingatkan karena aplikasi belum ditandatangani. Klik **More info** lalu **Run anyway**.
+1. Kode ada di repo GitHub (repo harus **public** supaya update otomatis bisa jalan).
+2. Buka tab **Actions**, pilih **Rilis Windows**, klik **Run workflow**.
+3. Tunggu sekitar 10 menit. Hasilnya muncul di **Releases** sebagai `Luna Finance v<versi>`, berisi installer `.exe`.
+4. Jalankan installer. SmartScreen akan memperingatkan karena aplikasi belum ditandatangani Microsoft. Klik **More info**, lalu **Run anyway**.
+
+Prasyarat sekali saja: tambah secret `TAURI_SIGNING_PRIVATE_KEY` di Settings repo, Secrets and variables, Actions. Isinya kunci penandatangan update (jangan dibagikan ke siapa pun).
+
+## Update aplikasi
+
+Aplikasi mengecek Releases saat dibuka. Kalau ada versi baru, muncul pemberitahuan, lalu pasang lewat **Pengaturan, Pembaruan aplikasi, Pasang dan mulai ulang**. Data tidak terhapus.
+
+Untuk merilis versi baru: naikkan angka versi di `package.json`, `src-tauri/Cargo.toml`, dan `src-tauri/tauri.conf.json` (ketiganya sama), push, lalu jalankan workflow **Rilis Windows**.
 
 ## Build di laptop sendiri
 

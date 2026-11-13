@@ -16,6 +16,7 @@ import { todayStr } from '@/lib/date'
 import { isTauri, saveTextFile } from '@/lib/platform'
 import { isAutostartEnabled, setAutostart } from '@/lib/reminders'
 import { applyTheme } from '@/lib/theme'
+import { checkForUpdate, currentVersion, type UpdateInfo } from '@/lib/updater'
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
   return (
@@ -74,6 +75,7 @@ export function Settings() {
         </Section>
 
         <DesktopSection />
+        <UpdateSection />
         <BackupSection />
 
         <SyncSection />
@@ -386,6 +388,66 @@ function DesktopSection() {
       ) : (
         <p className="text-muted">Pengaturan ini hanya ada di aplikasi Windows. Kamu sedang membuka versi peramban.</p>
       )}
+    </Section>
+  )
+}
+
+/* ---------- Pembaruan aplikasi ---------- */
+
+function UpdateSection() {
+  const toast = useToast()
+  const desktop = isTauri()
+  const [version, setVersion] = useState<string | null>(null)
+  const [state, setState] = useState<'idle' | 'checking' | 'latest' | 'found' | 'installing'>('idle')
+  const [info, setInfo] = useState<UpdateInfo | null>(null)
+  const [pct, setPct] = useState<number | null>(0)
+  useEffect(() => { currentVersion().then(setVersion, () => {}) }, [])
+
+  const check = async () => {
+    setState('checking')
+    try {
+      const u = await checkForUpdate()
+      setInfo(u)
+      setState(u ? 'found' : 'latest')
+    } catch {
+      setState('idle')
+      toast('Tidak bisa mengecek pembaruan. Cek koneksi internet.', 'error')
+    }
+  }
+
+  const install = async () => {
+    if (!info) return
+    setState('installing')
+    try {
+      await info.install(setPct)
+    } catch (e) {
+      setState('found')
+      toast(e instanceof Error ? e.message : 'Gagal memasang pembaruan.', 'error')
+    }
+  }
+
+  return (
+    <Section title="Pembaruan aplikasi" desc={version ? `Versi terpasang ${version}.` : 'Cek versi terbaru dari GitHub.'}>
+      {!desktop ? (
+        <p className="text-muted">Pembaruan otomatis hanya ada di aplikasi Windows.</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          {state === 'found' && info ? (
+            <>
+              <Badge tone="accent">Versi {info.version} tersedia</Badge>
+              <Button variant="primary" onClick={install}>Pasang dan mulai ulang</Button>
+            </>
+          ) : state === 'installing' ? (
+            <span role="status" className="text-muted">Mengunduh pembaruan{pct !== null ? ` ${pct}%` : ''}. Aplikasi akan mulai ulang sendiri.</span>
+          ) : (
+            <>
+              <Button onClick={check} loading={state === 'checking'}>Cek pembaruan</Button>
+              {state === 'latest' && <span className="text-muted">Sudah versi terbaru.</span>}
+            </>
+          )}
+        </div>
+      )}
+      {state === 'found' && info?.notes && <p className="mt-3 text-[13px] whitespace-pre-line text-muted">{info.notes}</p>}
     </Section>
   )
 }
