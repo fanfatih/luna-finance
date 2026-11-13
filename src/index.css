@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/plus-jakarta-sans";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -9,10 +9,13 @@
  * Semua pasangan teks/latar diperiksa minimal 4,5:1 di mode terang dan gelap.
  */
 :root {
+  --canvas: #f4f5f9;
   --bg: #ffffff;
-  --surface: #fafafa;
-  --subtle: #f4f4f5;
-  --line: #e4e4e7;
+  --surface: #f9fafb;
+  --subtle: #f1f2f6;
+  --line: #e4e6ee;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 2px 8px rgb(16 24 40 / 0.05);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 0.05), 0 12px 28px rgb(16 24 40 / 0.1);
   --line-strong: #d4d4d8;
   --fg: #18181b;
   --muted: #52525b;
@@ -32,10 +35,13 @@
 }
 
 .dark {
-  --bg: #09090b;
-  --surface: #111113;
-  --subtle: #18181b;
-  --line: #27272a;
+  --canvas: #09090b;
+  --bg: #111114;
+  --surface: #16161a;
+  --subtle: #1c1c21;
+  --line: #2a2a31;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.25);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 12px 28px rgb(0 0 0 / 0.45);
   --line-strong: #3f3f46;
   --fg: #fafafa;
   --muted: #a1a1aa;
@@ -55,7 +61,8 @@
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans Variable", "Segoe UI", system-ui, sans-serif;
+  --color-canvas: var(--canvas);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-subtle: var(--subtle);
@@ -84,7 +91,7 @@
     height: 100%;
   }
   body {
-    background: var(--bg);
+    background: var(--canvas);
     color: var(--fg);
     font-family: var(--font-sans);
     font-size: 14px;
@@ -124,7 +131,12 @@
   /* Angka uang memakai angka sejajar supaya kolom rapi */
   .num {
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.015em;
+  }
+  h1,
+  h2 {
+    letter-spacing: -0.02em;
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -134,6 +146,20 @@
     background: var(--line-strong);
     border-radius: 6px;
     border: 2px solid var(--bg);
+  }
+}
+
+/* Bayangan hanya penanda ketinggian: kartu di atas kanvas, dan kartu yang sedang disorot */
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-lift {
+  box-shadow: var(--shadow-lift);
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
   }
 }
 

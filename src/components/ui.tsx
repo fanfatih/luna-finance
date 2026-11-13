@@ -3,7 +3,7 @@ import {
   type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, animate, motion, useReducedMotion, type Variants } from 'motion/react'
 import { Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { parseMessage, parseNominal, rupiah } from '@/lib/money'
@@ -14,7 +14,7 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANT: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-hover active:bg-accent-hover disabled:opacity-50',
+  primary: 'bg-accent text-white shadow-[0_1px_2px_rgb(37_99_235/0.4)] hover:bg-accent-hover active:bg-accent-hover disabled:opacity-50',
   secondary:
     'border border-line-strong bg-bg text-fg hover:bg-subtle active:bg-line disabled:opacity-50',
   ghost: 'text-fg hover:bg-subtle active:bg-line disabled:opacity-50',
@@ -39,7 +39,7 @@ export function Button({ variant = 'secondary', size = 'md', loading, className,
       {...p}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-lg font-medium whitespace-nowrap transition-colors duration-150',
+        'inline-flex shrink-0 items-center justify-center rounded-lg font-medium whitespace-nowrap transition-[color,background-color,transform,box-shadow] duration-150 active:scale-[0.97] disabled:active:scale-100',
         VARIANT[variant], SIZE[size], className,
       )}
     >
@@ -59,7 +59,7 @@ export function IconButton({
       title={label}
       {...p}
       className={cn(
-        'inline-flex size-10 items-center justify-center rounded-lg text-muted transition-colors duration-150 hover:bg-subtle hover:text-fg disabled:opacity-50',
+        'inline-flex size-10 items-center justify-center rounded-lg text-muted transition-[color,background-color,transform] duration-150 hover:bg-subtle hover:text-fg active:scale-90 disabled:opacity-50 disabled:active:scale-100',
         className,
       )}
     >
@@ -192,7 +192,7 @@ export function Segmented<T extends string>({
 /* ---------- Kartu & penanda ---------- */
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn('rounded-xl border border-line bg-bg', className)}>{children}</div>
+  return <div className={cn('shadow-card rounded-xl border border-line bg-bg', className)}>{children}</div>
 }
 
 type Tone = 'neutral' | 'accent' | 'success' | 'warn' | 'danger'
@@ -213,14 +213,62 @@ export function Badge({ tone = 'neutral', children }: { tone?: Tone; children: R
   )
 }
 
-export function Money({ value, signed, className }: { value: number; signed?: boolean; className?: string }) {
+/** Angka yang naik dari nilai sebelumnya ke nilai baru. Dimatikan bila pengguna meminta gerak dikurangi. */
+function useCountUp(value: number, enabled: boolean): number {
+  const reduce = useReducedMotion()
+  const skip = !enabled || !!reduce
+  const [shown, setShown] = useState(skip ? value : 0)
+  const from = useRef(skip ? value : 0)
+  useEffect(() => {
+    if (skip) {
+      from.current = value
+      setShown(value)
+      return
+    }
+    const controls = animate(from.current, value, {
+      duration: 0.9,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => {
+        from.current = v
+        setShown(Math.round(v))
+      },
+      onComplete: () => setShown(value),
+    })
+    return () => controls.stop()
+  }, [value, skip])
+  return shown
+}
+
+export function Money({
+  value, signed, className, countUp,
+}: { value: number; signed?: boolean; className?: string; countUp?: boolean }) {
+  const shown = useCountUp(value, !!countUp)
   const tone = value > 0 ? 'text-success-text' : value < 0 ? 'text-danger-text' : 'text-fg'
   return (
     <span className={cn('num', signed && tone, className)}>
       {signed && value > 0 ? '+' : ''}
-      {rupiah(value)}
+      {rupiah(shown)}
     </span>
   )
+}
+
+/* ---------- Gerak masuk berurutan ---------- */
+
+const listVariants: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.03 } } }
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 320, damping: 30 } },
+}
+
+/** Anak-anaknya muncul satu per satu dari bawah. Bungkus tiap anak dengan StaggerItem. */
+export function Stagger({ children, className, as = 'div' }: { children: ReactNode; className?: string; as?: 'div' | 'ul' }) {
+  const Tag = as === 'ul' ? motion.ul : motion.div
+  return <Tag className={className} variants={listVariants} initial="hidden" animate="show">{children}</Tag>
+}
+
+export function StaggerItem({ children, className, as = 'div' }: { children: ReactNode; className?: string; as?: 'div' | 'li' }) {
+  const Tag = as === 'li' ? motion.li : motion.div
+  return <Tag className={className} variants={itemVariants}>{children}</Tag>
 }
 
 /* ---------- Keadaan kosong, memuat, galat ---------- */
@@ -326,7 +374,7 @@ export function Dialog({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
           onMouseDown={(e) => e.target === e.currentTarget && onClose()}
           onKeyDown={onKey}
@@ -334,9 +382,9 @@ export function Dialog({
           <motion.div
             ref={ref}
             role="dialog" aria-modal="true" aria-labelledby={titleId}
-            className={cn('flex max-h-[90vh] w-full flex-col rounded-xl border border-line bg-bg shadow-xl', width)}
-            initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.98 }} transition={{ type: 'spring', duration: 0.3, bounce: 0.12 }}
+            className={cn('flex max-h-[90vh] w-full flex-col rounded-xl border border-line bg-bg shadow-lift', width)}
+            initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.97 }} transition={{ type: 'spring', stiffness: 420, damping: 32 }}
           >
             <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3">
               <h2 id={titleId} className="text-base font-semibold">{title}</h2>
@@ -429,7 +477,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

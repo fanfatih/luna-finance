@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { HandCoins, Landmark, TrendingUp, Undo2 } from 'lucide-react'
 import { useApp, useAsync } from '@/app/context'
-import { Badge, Button, Card, EmptyState, ErrorState, Loading, Money, PageHeader, Segmented } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, ErrorState, Loading, Money, PageHeader, Segmented, Stagger, StaggerItem } from '@/components/ui'
 import { daySummary, latestBalances, profitSeries, totalBalanceNow } from '@/db/finance'
 import { debtTotals, listDebts } from '@/db/debts'
 import { addDays, formatDate, formatShort, todayStr } from '@/lib/date'
@@ -47,17 +48,22 @@ export function Dashboard() {
     ? `Profit ${rangeLabel}: ${rupiah(sum)} dari ${series.length} hari tercatat.`
     : `Belum ada catatan pada ${rangeLabel}.`
 
-  return (
-    <div>
-      <PageHeader title="Dashboard" subtitle="Ringkasan keuangan Lunatopup." />
+  const spark = days.map((d) => ({ label: d.label, profit: d.profit ?? 0 })).slice(-14)
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="p-6">
-          <p className="text-muted">Profit hari ini</p>
+  return (
+    <Stagger>
+      <StaggerItem><PageHeader title="Dashboard" subtitle="Ringkasan keuangan Lunatopup." /></StaggerItem>
+
+      <StaggerItem className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <Card className="relative overflow-hidden p-6">
+          <p className="flex items-center gap-2 text-muted">
+            <TrendingUp className="size-4 text-accent-text" aria-hidden="true" />
+            Profit hari ini
+          </p>
           {day.hasRecord ? (
             <>
-              <Money value={day.profit ?? 0} signed className="mt-1 block text-5xl font-semibold" />
-              <p className="mt-3 text-muted">
+              <Money value={day.profit ?? 0} signed countUp className="relative mt-1 block text-5xl font-bold" />
+              <p className="relative mt-3 text-muted">
                 Saldo berubah <Money value={day.delta} signed />
                 {day.piutangBaru - day.piutangLunas - day.utangBaru + day.utangBayar !== 0 && ', sudah dikoreksi utang piutang'}
                 {day.capitalNet !== 0 && ' dan modal'}.
@@ -69,11 +75,29 @@ export function Dashboard() {
               <Button variant="primary" onClick={() => go({ name: 'keuangan', tab: 'catat' })}>Isi saldo hari ini</Button>
             </div>
           )}
+          {day.hasRecord && spark.length > 1 && (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-16 opacity-70">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={spark} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.28} />
+                      <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="profit" stroke="var(--accent)" strokeWidth={2} fill="url(#spark)" animationDuration={1100} animationEasing="ease-out" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         <Card className="p-6">
-          <p className="text-muted">Total saldo semua channel</p>
-          <Money value={total.total} className="mt-1 block text-3xl font-semibold" />
+          <p className="flex items-center gap-2 text-muted">
+            <Landmark className="size-4 text-accent-text" aria-hidden="true" />
+            Total saldo semua channel
+          </p>
+          <Money value={total.total} countUp className="mt-1 block text-3xl font-bold" />
           <p className="mt-1 text-[13px] text-muted">
             {total.asOf ? `Per catatan ${formatDate(total.asOf)}` : 'Dari saldo awal, belum ada catatan harian'}
           </p>
@@ -86,9 +110,9 @@ export function Dashboard() {
             ))}
           </ul>
         </Card>
-      </div>
+      </StaggerItem>
 
-      <Card className="mt-4 p-6">
+      <StaggerItem><Card className="mt-4 p-6">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold">
@@ -111,47 +135,53 @@ export function Dashboard() {
           <div role="img" aria-label={summary} className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={days} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="barUp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.55} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid vertical={false} stroke="var(--line)" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: 'var(--muted)', fontSize: 12 }} interval="preserveStartEnd" minTickGap={16} />
                 <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: 'var(--muted)', fontSize: 12 }} tickFormatter={rupiahCompact} />
                 <Tooltip
                   cursor={{ fill: 'var(--subtle)' }}
-                  contentStyle={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--fg)' }}
+                  contentStyle={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 10, color: 'var(--fg)', boxShadow: 'var(--shadow-lift)' }}
                   formatter={(v) => [rupiah(Number(v)), 'Profit']}
                 />
-                <Bar dataKey="profit" radius={[4, 4, 0, 0]} maxBarSize={36} isAnimationActive>
+                <Bar dataKey="profit" radius={[6, 6, 0, 0]} maxBarSize={36} isAnimationActive animationDuration={900} animationEasing="ease-out">
                   {days.map((d) => (
-                    <Cell key={d.date} fill={(d.profit ?? 0) < 0 ? 'var(--danger)' : 'var(--accent)'} />
+                    <Cell key={d.date} fill={(d.profit ?? 0) < 0 ? 'var(--danger)' : 'url(#barUp)'} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
-      </Card>
+      </Card></StaggerItem>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <StaggerItem className="mt-4 grid gap-4 sm:grid-cols-2">
         <Card className="p-6">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-muted">Piutang berjalan</p>
+            <p className="flex items-center gap-2 text-muted"><HandCoins className="size-4 text-accent-text" aria-hidden="true" />Piutang berjalan</p>
             <Badge tone="neutral">{totals.piutangCount} catatan</Badge>
           </div>
-          <Money value={totals.piutang} className="mt-1 block text-2xl font-semibold" />
+          <Money value={totals.piutang} countUp className="mt-1 block text-2xl font-bold" />
           <p className="mt-1 text-[13px] text-muted">Uang yang masih harus kembali ke kamu.</p>
         </Card>
         <Card className="p-6">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-muted">Utang berjalan</p>
+            <p className="flex items-center gap-2 text-muted"><Undo2 className="size-4 text-accent-text" aria-hidden="true" />Utang berjalan</p>
             <Badge tone="neutral">{totals.utangCount} catatan</Badge>
           </div>
-          <Money value={totals.utang} className="mt-1 block text-2xl font-semibold" />
+          <Money value={totals.utang} countUp className="mt-1 block text-2xl font-bold" />
           <p className="mt-1 text-[13px] text-muted">Uang yang masih harus kamu kembalikan.</p>
         </Card>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      </StaggerItem>
+      <StaggerItem className="mt-3 flex flex-wrap items-center gap-3">
         <Button onClick={() => go({ name: 'keuangan', tab: 'utang' })}>Lihat daftar utang piutang</Button>
         {overdue > 0 && <Badge tone="warn">{overdue} catatan lewat jatuh tempo</Badge>}
-      </div>
-    </div>
+      </StaggerItem>
+    </Stagger>
   )
 }
