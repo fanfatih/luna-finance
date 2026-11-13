@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Palet: netral putih/zinc + satu aksen biru, sesuai arahan (putih utama, biru sebagai aksen).
+ * Merah, hijau, kuning hanya untuk makna: rugi, untung, hampir habis.
+ * Semua pasangan teks/latar diperiksa minimal 4,5:1 di mode terang dan gelap.
+ */
+:root {
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --subtle: #f4f4f5;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --fg: #18181b;
+  --muted: #52525b;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-text: #2563eb;
+  --accent-soft: #eff6ff;
+  --accent-soft-fg: #1d4ed8;
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --danger-soft: #fef2f2;
+  --success-text: #15803d;
+  --success-soft: #f0fdf4;
+  --warn-text: #b45309;
+  --warn-soft: #fffbeb;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #09090b;
+  --surface: #111113;
+  --subtle: #18181b;
+  --line: #27272a;
+  --line-strong: #3f3f46;
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --accent: #2563eb;
+  --accent-hover: #3b82f6;
+  --accent-text: #60a5fa;
+  --accent-soft: #172554;
+  --accent-soft-fg: #93c5fd;
+  --danger: #ef4444;
+  --danger-text: #f87171;
+  --danger-soft: #2a1215;
+  --success-text: #4ade80;
+  --success-soft: #0f2418;
+  --warn-text: #fbbf24;
+  --warn-soft: #2a2008;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-fg: var(--accent-soft-fg);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-soft: var(--danger-soft);
+  --color-success-text: var(--success-text);
+  --color-success-soft: var(--success-soft);
+  --color-warn-text: var(--warn-text);
+  --color-warn-soft: var(--warn-soft);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    user-select: none;
+  }
+  input,
+  textarea,
+  [data-selectable] {
+    user-select: text;
+  }
+  /* R-39: semua kontrol yang bisa diklik menunjukkan pointer, yang nonaktif menunjukkan not-allowed */
+  button,
+  a[href],
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+  /* Angka uang memakai angka sejajar supaya kolom rapi */
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 6px;
+    border: 2px solid var(--bg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

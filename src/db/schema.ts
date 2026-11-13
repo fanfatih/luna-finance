@@ -1,0 +1,76 @@
+import type { Db } from './adapter'
+
+/**
+ * Semua tabel punya updated_at (ms) dan deleted_at (hapus lunak) agar siap disinkronkan.
+ * Uang disimpan sebagai bilangan bulat Rupiah. Tanggal berbentuk YYYY-MM-DD.
+ */
+const MIGRATIONS: string[][] = [
+  [
+    `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)`,
+    `CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY, value TEXT, updated_at INTEGER NOT NULL)`,
+
+    // Keuangan Lunatopup
+    `CREATE TABLE IF NOT EXISTS channels (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, initial_balance INTEGER NOT NULL DEFAULT 0,
+      initial_date TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS daily_records (
+      id TEXT PRIMARY KEY, date TEXT NOT NULL, note TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_daily_records_date ON daily_records(date)`,
+    `CREATE TABLE IF NOT EXISTS daily_balances (
+      id TEXT PRIMARY KEY, record_id TEXT NOT NULL, channel_id TEXT NOT NULL,
+      balance INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_daily_balances_record ON daily_balances(record_id)`,
+    `CREATE TABLE IF NOT EXISTS capital_moves (
+      id TEXT PRIMARY KEY, date TEXT NOT NULL, amount INTEGER NOT NULL, note TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_capital_date ON capital_moves(date)`,
+
+    // Utang piutang
+    `CREATE TABLE IF NOT EXISTS contacts (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, note TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS debts (
+      id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('utang','piutang')),
+      contact_id TEXT NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL,
+      due_date TEXT, note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_debts_date ON debts(date)`,
+    `CREATE TABLE IF NOT EXISTS debt_payments (
+      id TEXT PRIMARY KEY, debt_id TEXT NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL,
+      note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_payments_debt ON debt_payments(debt_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_payments_date ON debt_payments(date)`,
+
+    // Lunapremium
+    `CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, has_account INTEGER NOT NULL DEFAULT 0,
+      has_team INTEGER NOT NULL DEFAULT 0, team_capacity INTEGER,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS product_variants (
+      id TEXT PRIMARY KEY, product_id TEXT NOT NULL, name TEXT NOT NULL,
+      duration_days INTEGER NOT NULL, price INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS customers (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, contact TEXT, note TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE TABLE IF NOT EXISTS subscriptions (
+      id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, product_id TEXT NOT NULL, variant_id TEXT,
+      start_date TEXT NOT NULL, duration_days INTEGER NOT NULL, end_date TEXT NOT NULL,
+      price INTEGER NOT NULL DEFAULT 0, account_login TEXT, account_password_enc TEXT,
+      team TEXT, note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_subs_end ON subscriptions(end_date)`,
+  ],
+]
+
+export async function migrate(db: Db): Promise<void> {
+  await db.run(`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)`)
+  const rows = await db.all<{ value: string }>(`SELECT value FROM meta WHERE key = 'schema_version'`)
+  let version = rows.length ? Number(rows[0].value) : 0
+  while (version < MIGRATIONS.length) {
+    for (const stmt of MIGRATIONS[version]) await db.run(stmt)
+    version += 1
+    await db.run(`INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)`, [String(version)])
+  }
+}
