@@ -1,6 +1,6 @@
 [package]
 name = "luna-finance"
-version = "0.2.0"
+version = "0.3.0"
 description = "Luna Finance: keuangan Lunatopup dan Lunapremium"
 edition = "2021"
 rust-version = "1.77"

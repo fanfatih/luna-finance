@@ -62,6 +62,17 @@ const MIGRATIONS: string[][] = [
       team TEXT, note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
     `CREATE INDEX IF NOT EXISTS idx_subs_end ON subscriptions(end_date)`,
   ],
+  // v2: email customer, kalender kegiatan pribadi, dan catatan pengingat yang sudah dikirim (tidak disinkronkan)
+  [
+    `ALTER TABLE customers ADD COLUMN email TEXT`,
+    `CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, date TEXT NOT NULL, start_time TEXT, end_time TEXT,
+      category TEXT NOT NULL DEFAULT 'pribadi', note TEXT,
+      remind_day INTEGER NOT NULL DEFAULT 0, remind_hours INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_events_date ON events(date)`,
+    `CREATE TABLE IF NOT EXISTS reminder_log (key TEXT PRIMARY KEY, at INTEGER NOT NULL)`,
+  ],
 ]
 
 export async function migrate(db: Db): Promise<void> {

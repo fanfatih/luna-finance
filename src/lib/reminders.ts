@@ -34,3 +34,18 @@ export async function setAutostart(on: boolean): Promise<void> {
   const { enable, disable } = await import('@tauri-apps/plugin-autostart')
   await (on ? enable() : disable())
 }
+
+/** Notifikasi Windows biasa. false bila bukan aplikasi desktop atau izin ditolak. */
+export async function notifyNative(title: string, body: string): Promise<boolean> {
+  if (!isTauri()) return false
+  try {
+    const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/plugin-notification')
+    let ok = await isPermissionGranted()
+    if (!ok) ok = (await requestPermission()) === 'granted'
+    if (!ok) return false
+    sendNotification({ title, body })
+    return true
+  } catch {
+    return false
+  }
+}

@@ -1,6 +1,7 @@
 import type { Db } from './adapter'
 import { uid } from './finance'
 import { addDays, diffDays } from '@/lib/date'
+import { cleanPhone } from '@/lib/phone'
 
 const now = (): number => Date.now()
 
@@ -108,30 +109,40 @@ export interface Customer {
   id: string
   name: string
   contact: string | null
+  email: string | null
   note: string | null
 }
 
 export async function listCustomers(db: Db): Promise<Customer[]> {
   return db.all<Customer>(
-    `SELECT id, name, contact, note FROM customers WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
+    `SELECT id, name, contact, email, note FROM customers WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
   )
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export async function saveCustomer(
   db: Db,
-  c: { name: string; contact: string | null; note: string | null },
+  c: { name: string; contact: string | null; note: string | null; email?: string | null },
   id?: string,
 ): Promise<string> {
   if (!c.name.trim()) throw new Error('Nama customer wajib diisi.')
+  c = { ...c, contact: c.contact === null ? null : cleanPhone(c.contact).trim() || null }
+  if (c.email !== undefined) {
+    const e = c.email?.trim() || null
+    if (e && !EMAIL.test(e)) throw new Error('Format email belum benar.')
+    c = { ...c, email: e }
+  }
   if (id) {
-    await db.run(`UPDATE customers SET name=?, contact=?, note=?, updated_at=? WHERE id=?`, [
-      c.name.trim(), c.contact, c.note, now(), id,
+    // email yang tidak dikirim (undefined) dibiarkan seperti semula
+    await db.run(`UPDATE customers SET name=?, contact=?, note=?, email=CASE WHEN ? THEN ? ELSE email END, updated_at=? WHERE id=?`, [
+      c.name.trim(), c.contact, c.note, c.email === undefined ? 0 : 1, c.email ?? null, now(), id,
     ])
     return id
   }
   const nid = uid()
-  await db.run(`INSERT INTO customers (id, name, contact, note, updated_at) VALUES (?,?,?,?,?)`, [
-    nid, c.name.trim(), c.contact, c.note, now(),
+  await db.run(`INSERT INTO customers (id, name, contact, email, note, updated_at) VALUES (?,?,?,?,?,?)`, [
+    nid, c.name.trim(), c.contact, c.email ?? null, c.note, now(),
   ])
   return nid
 }

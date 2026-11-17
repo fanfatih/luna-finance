@@ -5,6 +5,7 @@ import { Badge, Button, Money, Stagger, StaggerItem } from '@/components/ui'
 import { daySummary } from '@/db/finance'
 import { debtTotals } from '@/db/debts'
 import { expiringWithin } from '@/db/premium'
+import { categoryOf, listEvents } from '@/db/events'
 import { formatDateLong, greeting, todayStr } from '@/lib/date'
 import { cn } from '@/lib/cn'
 
@@ -126,6 +127,7 @@ export function Beranda() {
   const day = useAsync(() => daySummary(db, today), [today])
   const totals = useAsync(() => debtTotals(db, today), [today])
   const soon = useAsync(() => expiringWithin(db, today, settings.warnDays), [today, settings.warnDays])
+  const agenda = useAsync(() => listEvents(db, today, today), [today])
   const name = settings.name.trim()
   const hasRecord = !!day.data?.hasRecord
   const expiring = soon.data?.length ?? 0
@@ -173,6 +175,28 @@ export function Beranda() {
           </StaggerItem>
         )}
 
+        {(agenda.data?.length ?? 0) > 0 && (
+          <StaggerItem>
+            <section aria-label="Agenda hari ini" className="shadow-card mt-3 rounded-xl border border-line bg-bg p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold">Agenda hari ini</h2>
+                <Button size="sm" onClick={() => go({ name: 'pribadi' })}>Buka kalender</Button>
+              </div>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {agenda.data!.slice(0, 4).map((e) => (
+                  <li key={e.id} className="flex items-center gap-2.5">
+                    <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: categoryOf(e.category).color }} />
+                    <span className="num w-12 shrink-0 text-muted">{e.start_time ?? 'Seharian'}</span>
+                    <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                    <span className="text-[13px] text-muted">{categoryOf(e.category).label}</span>
+                  </li>
+                ))}
+              </ul>
+              {agenda.data!.length > 4 && <p className="mt-2 text-[13px] text-muted">dan {agenda.data!.length - 4} kegiatan lain.</p>}
+            </section>
+          </StaggerItem>
+        )}
+
         <StaggerItem>
           <div className="mt-8 grid gap-3 sm:grid-cols-[2fr_1fr]">
             <button
@@ -192,14 +216,17 @@ export function Beranda() {
               </span>
             </button>
             <button
-              type="button" disabled
-              className="flex min-h-40 flex-col justify-between rounded-xl border border-line bg-surface p-6 text-left"
+              type="button"
+              onClick={() => go({ name: 'pribadi' })}
+              className="group shadow-card flex min-h-40 flex-col justify-between rounded-xl border border-line bg-bg p-6 text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-accent-text/40 hover:shadow-lift active:translate-y-0 active:scale-[0.99]"
             >
-              <IconTile muted><UserRound className="size-5" /></IconTile>
+              <IconTile><UserRound className="size-5" /></IconTile>
               <span>
-                <span className="block text-2xl font-bold text-muted">Pribadi</span>
-                <span className="mt-1 mb-3 block text-muted">To-do dan keuangan pribadi.</span>
-                <Badge>Segera hadir</Badge>
+                <span className="flex items-center gap-1.5 text-2xl font-bold">
+                  Pribadi
+                  <ChevronRight className="size-5 text-muted transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+                </span>
+                <span className="mt-1 block text-muted">Kalender kegiatan dan pengingat.</span>
               </span>
             </button>
           </div>

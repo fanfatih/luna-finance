@@ -7,13 +7,14 @@ Nama "Luna Finance" masih sementara. Logonya cuma tulisan, belum ada logo sunggu
 ## Isi rilis pertama
 
 - **Lunatopup > Data Keuangan**: catat saldo akhir tiap channel (Seabank, Flip, Jago, Gopay, Duitku, Digiflazz), profit harian dihitung otomatis dari selisih saldo, dashboard, data utang-piutang, laporan + ekspor CSV.
-- **Lunapremium App**: pricelist, data customer, rekap langganan per aplikasi (termasuk tim Canva), pengingat langganan hampir habis.
+- **Lunapremium App**: pricelist, data customer (nama, kontak, email opsional), rekap langganan per aplikasi (termasuk tim Canva), pengingat langganan hampir habis, dan **Template WhatsApp**: isi produk, durasi, dan link tim atau akun, teks pesan langsung jadi dan tinggal disalin. Template bisa diubah. Nomor yang ditempel dari WhatsApp (+62 812-3456) otomatis jadi angka saja.
+- **Pribadi**: kalender kegiatan dengan kategori berwarna (Pribadi, Kuliah, Momentum, Mahesa, Lunatopup) dan pengingat H-1 atau 5 jam sebelumnya lewat notifikasi Windows. Agenda hari ini juga tampil di Beranda.
 - PIN, tema terang/gelap/ikut Windows, cadangan harian otomatis (30 terakhir), backup dan restore manual, autostart bersama Windows, ikon tray.
 
 - **Sinkron cloud** ke Supabase milikmu sendiri (project `luna-finance`), otomatis saat aplikasi dibuka dan tiap 10 menit, plus tombol **Perbarui data** di pojok atas.
 - **Bot Telegram** untuk catat dan cek utang-piutang dari HP.
 
-Menu lain (Momentum, Pribadi, Top Spender, Voucher) tampil sebagai "Segera hadir".
+Menu lain (Momentum, Top Spender, Voucher) tampil sebagai "Segera hadir".
 
 ## Rumus profit
 
@@ -71,7 +72,7 @@ Buka http://localhost:1420. Di browser data disimpan di localStorage, cocok buat
 ## Perintah lain
 
 ```
-npm test       # 62 tes (parser nominal, profit, utang, premium, backup, sinkron)
+npm test       # 82 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template, backup, sinkron)
 npm run build  # cek tipe + build web
 ```
 
@@ -100,6 +101,8 @@ Secret yang dibutuhkan (Supabase, Edge Functions, Secrets):
 Setelah secret terisi, buka sekali `https://<project>.supabase.co/functions/v1/telegram?setup=<SYNC_KEY>` di browser untuk memasang webhook dan daftar perintah bot.
 
 Perintah bot: `/piutang Budi 200rb`, `/utang Budi 200rb`, `/terima Budi 50rb`, `/bayar Budi 50rb`, `/saldo [nama]`, `/daftar`, `/bantuan`. Catatan lewat bot ikut menghitung profit hari itu setelah aplikasi sinkron.
+
+Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Migrasi ada di `supabase/migrations`.
 
 Aturan konflik sinkron: catatan dengan waktu ubah terbaru menang. Salah catat di bot dikoreksi lewat aplikasi desktop.
 

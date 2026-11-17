@@ -5,8 +5,11 @@ import { isTauri } from './index'
 /** Urutan tidak penting karena tidak ada kunci asing, tapi dijaga stabil untuk berkas cadangan. */
 export const TABLES = [
   'settings', 'channels', 'daily_records', 'daily_balances', 'capital_moves', 'contacts', 'debts',
-  'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions',
+  'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions', 'events',
 ] as const
+
+/** Tabel yang boleh tidak ada di berkas cadangan lama (dibuat setelah rilis pertama). */
+const OPTIONAL: readonly string[] = ['events']
 
 export interface BackupFile {
   app: 'luna-finance'
@@ -27,6 +30,7 @@ export function validateBackup(raw: unknown): BackupFile {
     throw new Error('Berkas ini bukan cadangan Luna Finance.')
   }
   for (const t of TABLES) {
+    if (OPTIONAL.includes(t) && b.tables[t] === undefined) continue
     if (!Array.isArray(b.tables[t])) throw new Error(`Cadangan tidak lengkap: tabel ${t} tidak ada.`)
   }
   return b as BackupFile
@@ -38,13 +42,13 @@ const IDENT = /^[a-z_][a-z0-9_]*$/
 export async function restoreAll(db: Db, raw: unknown): Promise<void> {
   const b = validateBackup(raw)
   for (const t of TABLES) {
-    for (const row of b.tables[t]) {
+    for (const row of b.tables[t] ?? []) {
       for (const k of Object.keys(row)) if (!IDENT.test(k)) throw new Error('Cadangan berisi kolom yang tidak valid.')
     }
   }
   for (const t of TABLES) await db.run(`DELETE FROM ${t}`)
   for (const t of TABLES) {
-    for (const row of b.tables[t]) {
+    for (const row of b.tables[t] ?? []) {
       const cols = Object.keys(row)
       if (!cols.length) continue
       await db.run(

@@ -8,7 +8,7 @@ import type { PinRecord } from '@/lib/crypto'
 /* ---------- Rute ---------- */
 
 export type KeuanganTab = 'dashboard' | 'catat' | 'utang' | 'laporan'
-export type PremiumTab = 'pricelist' | 'customer' | 'rekap'
+export type PremiumTab = 'pricelist' | 'customer' | 'rekap' | 'template'
 
 export type Route =
   | { name: 'beranda' }
@@ -16,6 +16,7 @@ export type Route =
   | { name: 'lunatopup' }
   | { name: 'keuangan'; tab: KeuanganTab; date?: string }
   | { name: 'premium'; tab: PremiumTab }
+  | { name: 'pribadi' }
   | { name: 'pengaturan'; from?: Route }
 
 export function parentOf(r: Route): Route | null {
@@ -30,6 +31,8 @@ export function parentOf(r: Route): Route | null {
       return { name: 'lunatopup' }
     case 'premium':
       return { name: 'bisnis' }
+    case 'pribadi':
+      return { name: 'beranda' }
     case 'pengaturan':
       return r.from ?? { name: 'beranda' }
   }

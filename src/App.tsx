@@ -8,6 +8,7 @@ import { openDb, type Db } from '@/db'
 import { runDailyBackup } from '@/db/backup'
 import { notifyExpiring } from '@/lib/reminders'
 import { applyTheme, watchSystemTheme } from '@/lib/theme'
+import { useReminders } from '@/lib/useReminders'
 import { checkForUpdate } from '@/lib/updater'
 import { Lock } from '@/screens/Lock'
 import { Beranda, Bisnis, Lunatopup } from '@/screens/Menus'
@@ -15,6 +16,7 @@ import { Settings } from '@/screens/Settings'
 import { Setup } from '@/screens/Setup'
 import { Keuangan } from '@/screens/keuangan'
 import { Premium } from '@/screens/premium'
+import { Pribadi } from '@/screens/pribadi'
 
 type Phase =
   | { kind: 'loading' }
@@ -87,6 +89,7 @@ function Ready({ initialKey }: { initialKey: CryptoKey | null }) {
   const toast = useToast()
 
   useEffect(() => setCryptoKey(initialKey), [initialKey, setCryptoKey])
+  useReminders()
   useEffect(() => {
     runDailyBackup(db).catch(() => {})
     if (settings.notif) notifyExpiring(db, settings.warnDays).catch(() => {})
@@ -104,6 +107,7 @@ function Ready({ initialKey }: { initialKey: CryptoKey | null }) {
       {route.name === 'lunatopup' && <Lunatopup />}
       {route.name === 'keuangan' && <Keuangan tab={route.tab} date={route.date} />}
       {route.name === 'premium' && <Premium tab={route.tab} />}
+      {route.name === 'pribadi' && <Pribadi />}
       {route.name === 'pengaturan' && <Settings />}
     </Shell>
   )
