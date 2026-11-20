@@ -14,7 +14,7 @@ import { clearSyncConfig, DEFAULT_SYNC_URL, lastSyncAt, loadSyncConfig, saveSync
 import { createPinRecord, decryptText, deriveKey, encryptText, verifyPin } from '@/lib/crypto'
 import { todayStr } from '@/lib/date'
 import { isTauri, saveTextFile } from '@/lib/platform'
-import { isAutostartEnabled, setAutostart } from '@/lib/reminders'
+import { desktopNotify, errText, isAutostartEnabled, setAutostart } from '@/lib/reminders'
 import { applyTheme } from '@/lib/theme'
 import { checkForUpdate, currentVersion, type UpdateInfo } from '@/lib/updater'
 
@@ -68,7 +68,7 @@ export function Settings() {
               <input type="checkbox" className="mt-1 size-4 accent-[var(--accent)]" checked={settings.notif} onChange={(e) => saveSettings({ notif: e.target.checked })} />
               <span>
                 <span className="block font-medium">Notifikasi Windows</span>
-                <span className="text-[13px] text-muted">Sekali sehari saat aplikasi dibuka, bila ada yang hampir habis.</span>
+                <span className="text-[13px] text-muted">Muncul di desktop Windows sekali sehari (langsung saat aplikasi dibuka) bila ada langganan yang hampir habis.</span>
               </span>
             </label>
           </div>
@@ -368,23 +368,55 @@ function DesktopSection() {
   const toast = useToast()
   const desktop = isTauri()
   const [on, setOn] = useState<boolean | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   useEffect(() => { isAutostartEnabled().then(setOn, () => setOn(false)) }, [])
+
+  const toggle = async (next: boolean) => {
+    setBusy(true)
+    setFailure(null)
+    try {
+      await setAutostart(next)
+      setOn(await isAutostartEnabled())
+    } catch (err) {
+      setFailure(errText(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const testNotif = async () => {
+    const e = await desktopNotify('Tes notifikasi Luna Finance', 'Kalau ini muncul di pojok layar, pengingat akan tampil begini.')
+    if (e) toast(`Notifikasi gagal dikirim: ${e}`, 'error')
+    else toast('Notifikasi dikirim. Cek pojok kanan bawah layar.')
+  }
+
   return (
-    <Section title="Aplikasi desktop" desc="Perilaku saat Windows menyala.">
+    <Section title="Aplikasi desktop" desc="Perilaku saat Windows menyala dan notifikasinya.">
       {desktop ? (
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox" className="mt-1 size-4 accent-[var(--accent)]" checked={!!on} disabled={on === null}
-            onChange={async (e) => {
-              try { await setAutostart(e.target.checked); setOn(e.target.checked) }
-              catch (err) { toast(err instanceof Error ? err.message : 'Gagal mengubah pengaturan.', 'error') }
-            }}
-          />
-          <span>
-            <span className="block font-medium">Buka otomatis saat Windows menyala</span>
-            <span className="text-[13px] text-muted">Aplikasi langsung berjalan di baris tugas (tray), jendela dibuka dari ikonnya.</span>
-          </span>
-        </label>
+        <div className="flex flex-col gap-4">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox" className="mt-1 size-4 accent-[var(--accent)]" checked={!!on} disabled={on === null || busy}
+              onChange={(e) => toggle(e.target.checked)}
+            />
+            <span>
+              <span className="block font-medium">Buka otomatis saat Windows menyala</span>
+              <span className="text-[13px] text-muted">Jendela Luna Finance langsung terbuka setiap kali Windows menyala, jadi tidak lupa mencatat.</span>
+            </span>
+          </label>
+          {failure && (
+            <p role="alert" className="rounded-lg bg-danger-soft p-3 text-danger-text">
+              Belum berhasil: {failure}
+            </p>
+          )}
+          <div>
+            <Button onClick={testNotif}>Tes notifikasi</Button>
+            <p className="mt-2 text-[13px] text-muted">
+              Kalau tes tidak muncul di desktop, cek Pengaturan Windows, Sistem, Notifikasi: pastikan Luna Finance menyala dan mode Jangan Ganggu (Focus) tidak aktif.
+            </p>
+          </div>
+        </div>
       ) : (
         <p className="text-muted">Pengaturan ini hanya ada di aplikasi Windows. Kamu sedang membuka versi peramban.</p>
       )}

@@ -17,6 +17,8 @@ export type Route =
   | { name: 'keuangan'; tab: KeuanganTab; date?: string }
   | { name: 'premium'; tab: PremiumTab }
   | { name: 'pribadi' }
+  | { name: 'topspender' }
+  | { name: 'voucher' }
   | { name: 'pengaturan'; from?: Route }
 
 export function parentOf(r: Route): Route | null {
@@ -33,6 +35,9 @@ export function parentOf(r: Route): Route | null {
       return { name: 'bisnis' }
     case 'pribadi':
       return { name: 'beranda' }
+    case 'topspender':
+    case 'voucher':
+      return { name: 'lunatopup' }
     case 'pengaturan':
       return r.from ?? { name: 'beranda' }
   }

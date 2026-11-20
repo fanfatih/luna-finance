@@ -5,9 +5,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const TABLES = [
   'channels', 'daily_records', 'daily_balances', 'capital_moves', 'contacts',
   'debts', 'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions', 'events',
+  'top_spenders', 'monthly_vouchers',
 ]
-// Tabel dan kolom yang baru ada sejak klien v2 (aplikasi 0.3.0). Klien lama tidak boleh menerimanya.
-const NEW_TABLES = ['events']
+// Versi klien (field `v`) paling rendah yang mengenal tabel itu. Klien lama tidak boleh menerimanya.
+// v2 = aplikasi 0.3.0, v3 = aplikasi 0.4.0. Klien tanpa `v` adalah 0.2.0.
+const MIN_VERSION: Record<string, number> = { events: 2, top_spenders: 3, monthly_vouchers: 3 }
+// Kolom yang baru ada sejak v2.
 const NEW_COLUMNS: Record<string, string[]> = { customers: ['email'] }
 const BATCH = 1000
 
@@ -44,8 +47,9 @@ Deno.serve(async (req) => {
     return json({ error: 'Isi permintaan tidak valid.' }, 400)
   }
 
-  const legacy = (body.v ?? 1) < 2
-  const tables = legacy ? TABLES.filter((t) => !NEW_TABLES.includes(t)) : TABLES
+  const v = body.v ?? 1
+  const legacy = v < 2
+  const tables = TABLES.filter((t) => (MIN_VERSION[t] ?? 1) <= v)
   const strip = (t: string, r: Record<string, unknown>) => {
     if (!legacy) return r
     const copy = { ...r }

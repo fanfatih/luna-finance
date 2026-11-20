@@ -73,6 +73,18 @@ const MIGRATIONS: string[][] = [
     `CREATE INDEX IF NOT EXISTS idx_events_date ON events(date)`,
     `CREATE TABLE IF NOT EXISTS reminder_log (key TEXT PRIMARY KEY, at INTEGER NOT NULL)`,
   ],
+  // v3: data Top Spender bulanan dan voucher default bulanan Lunatopup
+  [
+    `CREATE TABLE IF NOT EXISTS top_spenders (
+      id TEXT PRIMARY KEY, year INTEGER NOT NULL, month INTEGER NOT NULL, place INTEGER NOT NULL,
+      account TEXT NOT NULL, total_spend INTEGER, voucher_code TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_top_spenders_period ON top_spenders(year, month)`,
+    `CREATE TABLE IF NOT EXISTS monthly_vouchers (
+      id TEXT PRIMARY KEY, year INTEGER NOT NULL, month INTEGER NOT NULL, name TEXT, used INTEGER,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_monthly_vouchers_period ON monthly_vouchers(year, month)`,
+  ],
 ]
 
 export async function migrate(db: Db): Promise<void> {

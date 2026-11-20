@@ -346,6 +346,8 @@ export function Dialog({
     if (!open) return
     lastFocus.current = document.activeElement as HTMLElement | null
     const t = setTimeout(() => {
+      // Kalau fokus sudah ada di dalam dialog (misalnya langsung mengetik), jangan dipindahkan.
+      if (ref.current?.contains(document.activeElement)) return
       const el = ref.current?.querySelector<HTMLElement>('[autofocus],input,select,textarea') ?? ref.current?.querySelector<HTMLElement>(FOCUSABLE)
       el?.focus()
     }, 30)

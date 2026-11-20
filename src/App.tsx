@@ -6,7 +6,6 @@ import { TitleBar } from '@/components/TitleBar'
 import { ErrorState, Loading, ToastProvider, useToast } from '@/components/ui'
 import { openDb, type Db } from '@/db'
 import { runDailyBackup } from '@/db/backup'
-import { notifyExpiring } from '@/lib/reminders'
 import { applyTheme, watchSystemTheme } from '@/lib/theme'
 import { useReminders } from '@/lib/useReminders'
 import { checkForUpdate } from '@/lib/updater'
@@ -17,6 +16,8 @@ import { Setup } from '@/screens/Setup'
 import { Keuangan } from '@/screens/keuangan'
 import { Premium } from '@/screens/premium'
 import { Pribadi } from '@/screens/pribadi'
+import { TopSpenderPage } from '@/screens/lunatopup/TopSpender'
+import { VouchersPage } from '@/screens/lunatopup/Vouchers'
 
 type Phase =
   | { kind: 'loading' }
@@ -85,14 +86,13 @@ export default function App() {
 
 /** Isi aplikasi setelah terbuka. Memasang kunci enkripsi, cadangan harian, dan pengingat. */
 function Ready({ initialKey }: { initialKey: CryptoKey | null }) {
-  const { db, settings, setCryptoKey, route } = useApp()
+  const { db, setCryptoKey, route } = useApp()
   const toast = useToast()
 
   useEffect(() => setCryptoKey(initialKey), [initialKey, setCryptoKey])
   useReminders()
   useEffect(() => {
     runDailyBackup(db).catch(() => {})
-    if (settings.notif) notifyExpiring(db, settings.warnDays).catch(() => {})
     checkForUpdate()
       .then((u) => u && toast(`Versi ${u.version} sudah tersedia. Pasang lewat Pengaturan.`))
       .catch(() => {})
@@ -108,6 +108,8 @@ function Ready({ initialKey }: { initialKey: CryptoKey | null }) {
       {route.name === 'keuangan' && <Keuangan tab={route.tab} date={route.date} />}
       {route.name === 'premium' && <Premium tab={route.tab} />}
       {route.name === 'pribadi' && <Pribadi />}
+      {route.name === 'topspender' && <TopSpenderPage />}
+      {route.name === 'voucher' && <VouchersPage />}
       {route.name === 'pengaturan' && <Settings />}
     </Shell>
   )

@@ -6,10 +6,11 @@ import { isTauri } from './index'
 export const TABLES = [
   'settings', 'channels', 'daily_records', 'daily_balances', 'capital_moves', 'contacts', 'debts',
   'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions', 'events',
+  'top_spenders', 'monthly_vouchers',
 ] as const
 
 /** Tabel yang boleh tidak ada di berkas cadangan lama (dibuat setelah rilis pertama). */
-const OPTIONAL: readonly string[] = ['events']
+const OPTIONAL: readonly string[] = ['events', 'top_spenders', 'monthly_vouchers']
 
 export interface BackupFile {
   app: 'luna-finance'

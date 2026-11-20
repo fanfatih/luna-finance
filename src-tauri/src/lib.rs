@@ -1,12 +1,12 @@
+use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
+    AppHandle, Emitter, Manager, WindowEvent,
 };
-use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_notification::NotificationExt;
 
-/// Argumen yang dipakai saat aplikasi dijalankan otomatis bersama Windows.
-const ARG_MINIMIZED: &str = "--minimized";
+mod winsys;
 
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
@@ -14,6 +14,28 @@ fn show_main(app: &AppHandle) {
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
+}
+
+/// Apakah aplikasi terdaftar buka otomatis saat Windows menyala.
+#[tauri::command]
+fn autostart_enabled() -> Result<bool, String> {
+    winsys::is_enabled()
+}
+
+#[tauri::command]
+fn autostart_set(on: bool) -> Result<(), String> {
+    winsys::set(on)
+}
+
+/// Notifikasi desktop lewat sisi Rust, tidak tergantung izin Notification milik webview.
+#[tauri::command]
+fn show_notification(app: AppHandle, title: String, body: String) -> Result<(), String> {
+    app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show()
+        .map_err(|e| e.to_string())
 }
 
 pub fn run() {
@@ -26,11 +48,10 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec![ARG_MINIMIZED]),
-        ))
+        .invoke_handler(tauri::generate_handler![autostart_enabled, autostart_set, show_notification])
         .setup(|app| {
+            winsys::register_notification_identity(&app.config().identifier);
+
             let open = MenuItem::with_id(app, "open", "Buka Luna Finance", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &quit])?;
@@ -57,11 +78,17 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Jendela dibuat tersembunyi; tampilkan kecuali dijalankan otomatis oleh Windows.
-            let minimized = std::env::args().any(|a| a == ARG_MINIMIZED);
-            if !minimized {
-                show_main(app.handle());
-            }
+            // Jendela dibuat tersembunyi di konfigurasi. Selalu tampilkan saat aplikasi mulai,
+            // termasuk saat dijalankan otomatis oleh Windows, supaya langsung kelihatan.
+            show_main(app.handle());
+
+            // Detak tiap menit dari sisi Rust. Pengecekan pengingat di webview ikut jalan walau
+            // jendela disembunyikan ke tray dan timer webview diperlambat.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(60));
+                let _ = handle.emit("tick", ());
+            });
             Ok(())
         })
         // Tombol tutup menyembunyikan jendela ke tray supaya pengingat tetap jalan.

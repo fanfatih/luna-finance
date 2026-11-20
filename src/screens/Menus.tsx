@@ -100,8 +100,8 @@ export function Lunatopup() {
       <MenuList
         items={[
           { title: 'Data Keuangan', desc: 'Saldo channel, profit harian, utang piutang, laporan.', icon: <TrendingUp className="size-5" />, onClick: () => go({ name: 'keuangan', tab: 'dashboard' }) },
-          { title: 'Data Top Spender', desc: 'Belum dibuat.', icon: <Trophy className="size-5" />, soon: true },
-          { title: 'Data Voucher', desc: 'Belum dibuat.', icon: <Ticket className="size-5" />, soon: true },
+          { title: 'Data Top Spender', desc: 'Top spender bulanan dan kode voucher hadiahnya.', icon: <Trophy className="size-5" />, onClick: () => go({ name: 'topspender' }) },
+          { title: 'Data Voucher', desc: 'Voucher bulanan dan berapa kali terpakai.', icon: <Ticket className="size-5" />, onClick: () => go({ name: 'voucher' }) },
         ]}
       />
     </Narrow>

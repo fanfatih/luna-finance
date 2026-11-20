@@ -13,6 +13,8 @@ export function crumb(r: Route): string {
     case 'keuangan': return 'Data Keuangan'
     case 'premium': return 'Lunapremium App'
     case 'pribadi': return 'Pribadi'
+    case 'topspender': return 'Data Top Spender'
+    case 'voucher': return 'Data Voucher'
     case 'pengaturan': return 'Pengaturan'
   }
 }
