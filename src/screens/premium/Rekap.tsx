@@ -1,17 +1,18 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Copy, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, Link2, MessageSquareText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useApp, useAsync } from '@/app/context'
 import {
   Badge, Button, ConfirmDialog, Dialog, EmptyState, ErrorState, Field, IconButton, Input, Loading,
   NominalInput, PageHeader, Segmented, Select, Table, TD, TH, Textarea, useToast,
 } from '@/components/ui'
 import {
-  daysLeft, deleteSubscription, ensureCustomer, groupByTeam, listCustomers, listProducts, listSubscriptions,
-  renewSubscription, saveSubscription, subStatus, type Product, type SubStatus, type Subscription,
+  daysLeft, deleteSubscription, ensureCustomer, groupByTeam, listCustomers, listProducts, listSubscriptions, listTeamLinks,
+  renewSubscription, teamLinkKey, saveSubscription, subStatus, type Product, type SubStatus, type Subscription,
 } from '@/db/premium'
 import { decryptText, encryptText } from '@/lib/crypto'
 import { addDays, formatDate, todayStr } from '@/lib/date'
 import { rupiah } from '@/lib/money'
+import { TeamLinkDialog, WaDialog } from './WaMessage'
 
 type StatusFilter = 'semua' | SubStatus
 
@@ -34,10 +35,12 @@ export function Rekap() {
   const [form, setForm] = useState<{ edit?: Subscription } | null>(null)
   const [renew, setRenew] = useState<Subscription | null>(null)
   const [del, setDel] = useState<Subscription | null>(null)
+  const [wa, setWa] = useState<Subscription | null>(null)
+  const [linkFor, setLinkFor] = useState<string | null>(null)
 
   const data = useAsync(async () => {
-    const [products, subs, customers] = await Promise.all([listProducts(db), listSubscriptions(db), listCustomers(db)])
-    return { products, subs, customers }
+    const [products, subs, customers, teamLinks] = await Promise.all([listProducts(db), listSubscriptions(db), listCustomers(db), listTeamLinks(db)])
+    return { products, subs, customers, teamLinks }
   }, [])
 
   const products = data.data?.products ?? []
@@ -68,6 +71,7 @@ export function Rekap() {
   }
 
   const all = data.data?.subs ?? []
+  const teamLinks = data.data?.teamLinks ?? {}
   const countOf = (pid: string) => all.filter((s) => s.product_id === pid && s.end_date >= today).length
   const soonCount = all.filter((s) => s.product_id === productId && subStatus(s.end_date, today, settings.warnDays) === 'hampir-habis').length
 
@@ -98,6 +102,7 @@ export function Rekap() {
         <TD><Badge tone={STATUS_TONE[st]}>{STATUS_LABEL[st]}</Badge></TD>
         <TD right>
           <div className="flex justify-end gap-1">
+            <IconButton label={`Pesan WhatsApp ${s.customer_name}`} className="size-8" onClick={() => setWa(s)}><MessageSquareText className="size-4" aria-hidden="true" /></IconButton>
             {product?.has_account && s.account_password_enc ? (
               <IconButton label={`Salin kata sandi ${s.customer_name}`} className="size-8" disabled={!cryptoKey} onClick={() => copyPassword(s)}>
                 <Copy className="size-4" aria-hidden="true" />
@@ -170,6 +175,9 @@ export function Rekap() {
                 <span className="text-[13px] font-normal text-muted">
                   {g.capacity ? `${g.activeCount} dari ${g.capacity} slot terisi, sisa ${Math.max(0, g.capacity - g.activeCount)}` : `${g.activeCount} anggota aktif`}
                 </span>
+                <Button size="sm" className="ml-auto" onClick={() => setLinkFor(g.team)}>
+                  <Link2 className="size-4" aria-hidden="true" /> {teamLinks[teamLinkKey(product.id, g.team)] ? 'Ubah link tim' : 'Isi link tim'}
+                </Button>
               </h2>
               <Table label={`Anggota ${g.team}`}>{head}<tbody>{g.members.map(renderRow)}</tbody></Table>
             </section>
@@ -189,6 +197,19 @@ export function Rekap() {
           product={product} edit={form.edit} customers={data.data?.customers.map((c) => c.name) ?? []}
           teams={[...new Set(all.filter((s) => s.product_id === product.id && s.team).map((s) => s.team as string))]}
           onClose={() => setForm(null)} onSaved={() => { bump(); toast('Langganan tersimpan.') }}
+        />
+      )}
+      {wa && product && (
+        <WaDialog
+          key={wa.id} sub={wa} product={products.find((p) => p.id === wa.product_id) ?? product}
+          teamLink={wa.team ? teamLinks[teamLinkKey(wa.product_id, wa.team)] ?? '' : ''}
+          onClose={() => setWa(null)} onLinkSaved={bump}
+        />
+      )}
+      {linkFor && product && (
+        <TeamLinkDialog
+          productId={product.id} productName={product.name} team={linkFor} link={teamLinks[teamLinkKey(product.id, linkFor)] ?? ''}
+          onClose={() => setLinkFor(null)} onSaved={() => { bump(); toast('Link tim tersimpan.') }}
         />
       )}
       {renew && <RenewDialog sub={renew} product={products.find((p) => p.id === renew.product_id) ?? null} onClose={() => setRenew(null)} onSaved={() => { bump(); toast('Langganan diperpanjang.') }} />}

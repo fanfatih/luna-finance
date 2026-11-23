@@ -5,7 +5,7 @@ import { getSetting, setSetting } from './finance'
 export const SYNC_TABLES = [
   'channels', 'daily_records', 'daily_balances', 'capital_moves', 'contacts',
   'debts', 'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions', 'events',
-  'top_spenders', 'monthly_vouchers',
+  'top_spenders', 'monthly_vouchers', 'team_links',
 ] as const
 
 export const DEFAULT_SYNC_URL = 'https://qsekvshirabzgsrgyxzk.supabase.co'
@@ -128,7 +128,7 @@ export async function syncNow(db: Db, cfg: SyncConfig, doFetch: Fetch = fetch): 
       res = await doFetch(`${cfg.url}/functions/v1/sync`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-sync-key': cfg.key },
-        body: JSON.stringify({ v: 3, push, since }),
+        body: JSON.stringify({ v: 4, push, since }),
       })
     } catch {
       throw new Error('Tidak bisa terhubung ke cloud. Cek koneksi internet.')

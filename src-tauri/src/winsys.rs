@@ -1,4 +1,4 @@
-//! Bagian yang khusus Windows: daftar autostart dan identitas aplikasi untuk notifikasi.
+//! Bagian yang khusus Windows: daftar autostart, identitas aplikasi untuk notifikasi, dan membuka alamat web.
 //! Semua ditulis ke HKEY_CURRENT_USER, jadi tidak butuh hak admin.
 
 #[cfg(windows)]
@@ -66,10 +66,20 @@ mod imp {
             let _ = key.set_string("DisplayName", "Luna Finance");
         }
     }
+
+    /// Buka alamat di aplikasi bawaan Windows (browser atau WhatsApp). Pemanggil sudah memeriksa isinya.
+    pub fn open_url(url: &str) -> Result<(), String> {
+        std::process::Command::new("rundll32")
+            .arg("url.dll,FileProtocolHandler")
+            .arg(url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| err("Gagal membuka WhatsApp", e))
+    }
 }
 
 #[cfg(windows)]
-pub use imp::{is_enabled, register_notification_identity, set};
+pub use imp::{is_enabled, open_url, register_notification_identity, set};
 
 #[cfg(not(windows))]
 pub fn is_enabled() -> Result<bool, String> {
@@ -83,3 +93,8 @@ pub fn set(_on: bool) -> Result<(), String> {
 
 #[cfg(not(windows))]
 pub fn register_notification_identity(_app_id: &str) {}
+
+#[cfg(not(windows))]
+pub fn open_url(_url: &str) -> Result<(), String> {
+    Err("Buka WhatsApp hanya tersedia di aplikasi Windows.".into())
+}

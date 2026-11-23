@@ -38,6 +38,15 @@ fn show_notification(app: AppHandle, title: String, body: String) -> Result<(), 
         .map_err(|e| e.to_string())
 }
 
+/// Buka chat WhatsApp di browser atau aplikasi WhatsApp. Hanya alamat wa.me yang diterima.
+#[tauri::command]
+fn open_whatsapp(url: String) -> Result<(), String> {
+    if !url.starts_with("https://wa.me/") || url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err("Alamat WhatsApp tidak valid.".into());
+    }
+    winsys::open_url(&url)
+}
+
 pub fn run() {
     tauri::Builder::default()
         // Satu jendela saja: membuka ulang aplikasi cukup memunculkan jendela yang sudah ada.
@@ -48,7 +57,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![autostart_enabled, autostart_set, show_notification])
+        .invoke_handler(tauri::generate_handler![autostart_enabled, autostart_set, show_notification, open_whatsapp])
         .setup(|app| {
             winsys::register_notification_identity(&app.config().identifier);
 

@@ -85,6 +85,14 @@ const MIGRATIONS: string[][] = [
       updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
     `CREATE INDEX IF NOT EXISTS idx_monthly_vouchers_period ON monthly_vouchers(year, month)`,
   ],
+  // v4: langkah pesan WhatsApp per aplikasi dan link undangan per tim
+  [
+    `ALTER TABLE products ADD COLUMN wa_steps TEXT`,
+    `CREATE TABLE IF NOT EXISTS team_links (
+      id TEXT PRIMARY KEY, product_id TEXT NOT NULL, team TEXT NOT NULL, link TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_team_links_product ON team_links(product_id)`,
+  ],
 ]
 
 export async function migrate(db: Db): Promise<void> {

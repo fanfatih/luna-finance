@@ -36,12 +36,14 @@ export interface Product {
   has_account: number
   has_team: number
   team_capacity: number | null
+  /** Langkah-langkah untuk pesan WhatsApp aplikasi ini. Boleh memakai isian seperti {link} dan {akun}. */
+  wa_steps: string | null
   variants: Variant[]
 }
 
 export async function listProducts(db: Db): Promise<Product[]> {
   const products = await db.all<Omit<Product, 'variants'>>(
-    `SELECT id, name, has_account, has_team, team_capacity FROM products WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
+    `SELECT id, name, has_account, has_team, team_capacity, wa_steps FROM products WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`,
   )
   const variants = await db.all<Variant>(
     `SELECT id, product_id, name, duration_days, price FROM product_variants WHERE deleted_at IS NULL ORDER BY duration_days, price`,
@@ -73,6 +75,15 @@ export async function saveProduct(db: Db, input: ProductInput, id?: string): Pro
     [nid, name, input.hasAccount ? 1 : 0, input.hasTeam ? 1 : 0, cap, now()],
   )
   return nid
+}
+
+const MAX_STEPS = 4000
+
+/** Simpan langkah pesan WhatsApp satu aplikasi. Teks kosong menghapus langkahnya. */
+export async function saveProductSteps(db: Db, productId: string, steps: string): Promise<void> {
+  const text = steps.replace(/\r\n/g, '\n').trim()
+  if (text.length > MAX_STEPS) throw new Error(`Langkah terlalu panjang (maksimal ${MAX_STEPS} karakter).`)
+  await db.run(`UPDATE products SET wa_steps=?, updated_at=? WHERE id=? AND deleted_at IS NULL`, [text || null, now(), productId])
 }
 
 export async function deleteProduct(db: Db, id: string): Promise<void> {
@@ -289,6 +300,38 @@ export async function expiringWithin(db: Db, today: string, warnDays: number): P
     const left = daysLeft(s.end_date, today)
     return left >= 0 && left <= warnDays
   })
+}
+
+/* ---------- Link undangan per tim ---------- */
+
+export const teamLinkKey = (productId: string, team: string): string => `${productId}|${team.trim()}`
+
+/** Semua link tim yang tersimpan, kuncinya `teamLinkKey`. */
+export async function listTeamLinks(db: Db): Promise<Record<string, string>> {
+  const rows = await db.all<{ product_id: string; team: string; link: string }>(
+    `SELECT product_id, team, link FROM team_links WHERE deleted_at IS NULL AND link IS NOT NULL AND link <> ''`,
+  )
+  const out: Record<string, string> = {}
+  for (const r of rows) out[teamLinkKey(r.product_id, r.team)] = r.link
+  return out
+}
+
+/** Simpan link undangan satu tim. Id-nya tetap per aplikasi dan tim, jadi dua perangkat tidak bikin dobel. Kosong berarti hapus. */
+export async function saveTeamLink(db: Db, productId: string, team: string, link: string): Promise<void> {
+  const t = team.trim()
+  const l = link.trim()
+  if (!t) throw new Error('Nama tim wajib diisi.')
+  if (l && !/^https?:\/\/\S+$/i.test(l)) throw new Error('Link harus diawali http:// atau https:// dan tanpa spasi.')
+  const id = `tl:${productId}:${t}`
+  if (!l) {
+    await db.run(`UPDATE team_links SET deleted_at=?, updated_at=? WHERE id=?`, [now(), now(), id])
+    return
+  }
+  await db.run(
+    `INSERT INTO team_links (id, product_id, team, link, updated_at) VALUES (?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET link=excluded.link, updated_at=excluded.updated_at, deleted_at=NULL`,
+    [id, productId, t, l, now()],
+  )
 }
 
 /** Cari customer dengan nama yang sama (tanpa peduli huruf besar kecil), kalau tidak ada dibuat baru. */

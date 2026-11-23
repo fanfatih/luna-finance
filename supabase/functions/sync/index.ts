@@ -5,13 +5,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const TABLES = [
   'channels', 'daily_records', 'daily_balances', 'capital_moves', 'contacts',
   'debts', 'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions', 'events',
-  'top_spenders', 'monthly_vouchers',
+  'top_spenders', 'monthly_vouchers', 'team_links',
 ]
 // Versi klien (field `v`) paling rendah yang mengenal tabel itu. Klien lama tidak boleh menerimanya.
-// v2 = aplikasi 0.3.0, v3 = aplikasi 0.4.0. Klien tanpa `v` adalah 0.2.0.
-const MIN_VERSION: Record<string, number> = { events: 2, top_spenders: 3, monthly_vouchers: 3 }
-// Kolom yang baru ada sejak v2.
-const NEW_COLUMNS: Record<string, string[]> = { customers: ['email'] }
+// v2 = aplikasi 0.3.0, v3 = aplikasi 0.4.0, v4 = aplikasi 0.5.0. Klien tanpa `v` adalah 0.2.0.
+const MIN_VERSION: Record<string, number> = { events: 2, top_spenders: 3, monthly_vouchers: 3, team_links: 4 }
+// Kolom yang baru ada sejak versi tertentu. Klien yang lebih lama tidak menerimanya dan tidak boleh menimpanya.
+const NEW_COLUMNS: Record<string, Record<string, number>> = { customers: { email: 2 }, products: { wa_steps: 4 } }
 const BATCH = 1000
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -48,19 +48,20 @@ Deno.serve(async (req) => {
   }
 
   const v = body.v ?? 1
-  const legacy = v < 2
   const tables = TABLES.filter((t) => (MIN_VERSION[t] ?? 1) <= v)
+  const unknownCols = (t: string) => Object.entries(NEW_COLUMNS[t] ?? {}).filter(([, since]) => v < since).map(([c]) => c)
   const strip = (t: string, r: Record<string, unknown>) => {
-    if (!legacy) return r
+    const cols = unknownCols(t)
+    if (!cols.length) return r
     const copy = { ...r }
-    for (const c of NEW_COLUMNS[t] ?? []) delete copy[c]
+    for (const c of cols) delete copy[c]
     return copy
   }
 
   for (const t of tables) {
     const rows = body.push?.[t]
     if (Array.isArray(rows) && rows.length) {
-      const { error } = await db.rpc('sync_push', { tbl: t, rows, legacy })
+      const { error } = await db.rpc('sync_push', { tbl: t, rows, keep: unknownCols(t) })
       if (error) return json({ error: `${t}: ${error.message}` }, 500)
     }
   }

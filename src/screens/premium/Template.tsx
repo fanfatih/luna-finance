@@ -2,20 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { Copy, RotateCcw, SquarePen } from 'lucide-react'
 import { useApp, useAsync } from '@/app/context'
 import { Button, Card, Dialog, ErrorState, Field, Input, Loading, PageHeader, Segmented, Textarea, useToast } from '@/components/ui'
-import { getSetting, setSetting } from '@/db/finance'
-import { listProducts } from '@/db/premium'
+import { listProducts, saveProductSteps, type Product } from '@/db/premium'
+import { loadTemplates, saveTemplates, type Templates } from '@/db/wa'
 import { addDays, formatDate, todayStr } from '@/lib/date'
 import { copyText } from '@/lib/clipboard'
-import { DEFAULT_TEMPLATES, PLACEHOLDERS, renderTemplate, templateKey, type TemplateKind } from '@/lib/template'
+import {
+  buildMessage, DEFAULT_TEMPLATES, effectiveTemplate, PLACEHOLDERS, renderTemplate, STEP_PLACEHOLDERS, STEPS_EXAMPLE, type TemplateKind,
+} from '@/lib/template'
 
 export function Template() {
-  const { db } = useApp()
+  const { db, bump } = useApp()
   const toast = useToast()
   const data = useAsync(async () => {
-    const [products, tim, akun] = await Promise.all([
-      listProducts(db), getSetting(db, templateKey('tim')), getSetting(db, templateKey('akun')),
-    ])
-    return { products, tpl: { tim: tim || DEFAULT_TEMPLATES.tim, akun: akun || DEFAULT_TEMPLATES.akun } as Record<TemplateKind, string> }
+    const [products, tpl] = await Promise.all([listProducts(db), loadTemplates(db)])
+    return { products, tpl }
   }, [])
 
   const [kind, setKind] = useState<TemplateKind>('tim')
@@ -26,7 +26,8 @@ export function Template() {
   const [akun, setAkun] = useState('')
   const [password, setPassword] = useState('')
   const [editing, setEditing] = useState(false)
-  const [tpl, setTpl] = useState<Record<TemplateKind, string> | null>(null)
+  const [editSteps, setEditSteps] = useState<Product | null>(null)
+  const [tpl, setTpl] = useState<Templates | null>(null)
 
   useEffect(() => { if (data.data && !tpl) setTpl(data.data.tpl) }, [data.data, tpl])
 
@@ -42,8 +43,8 @@ export function Template() {
   }
 
   const text = useMemo(
-    () => renderTemplate(tpl?.[kind] ?? '', { nama: nama.trim() || 'kak', produk, durasi, sampai, link, akun, password }),
-    [tpl, kind, nama, produk, durasi, sampai, link, akun, password],
+    () => buildMessage(effectiveTemplate(tpl?.[kind] ?? '', product?.wa_steps), product?.wa_steps, { nama: nama.trim() || 'kak', produk, durasi, sampai, link, akun, password }),
+    [tpl, kind, product, nama, produk, durasi, sampai, link, akun, password],
   )
 
   if (data.loading && !data.data) return <Loading />
@@ -58,7 +59,7 @@ export function Template() {
     <div>
       <PageHeader
         title="Template WhatsApp"
-        subtitle="Isi produk dan durasinya, teks pesan untuk customer langsung jadi. Tinggal salin."
+        subtitle="Isi produk dan durasinya, teks pesan untuk customer langsung jadi, lengkap dengan langkah pemakaian aplikasinya. Tinggal salin."
         actions={<Button onClick={() => setEditing(true)}><SquarePen className="size-4" aria-hidden="true" /> Ubah template</Button>}
       />
 
@@ -96,6 +97,17 @@ export function Template() {
               </Field>
             </>
           )}
+          {product && (
+            <div className="rounded-xl border border-line p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-[14px] font-semibold">Langkah {product.name}</h3>
+                <Button size="sm" onClick={() => setEditSteps(product)}>{product.wa_steps ? 'Ubah langkah' : 'Tambah langkah'}</Button>
+              </div>
+              <p className="mt-1 text-[13px] text-muted">
+                {product.wa_steps ? 'Ikut masuk ke pesan di sebelah kanan.' : 'Belum ada. Isi cara pakai aplikasi ini supaya otomatis masuk ke pesan.'}
+              </p>
+            </div>
+          )}
         </div>
 
         <Card className="flex flex-col p-4">
@@ -116,20 +128,94 @@ export function Template() {
           tpl={tpl} initialKind={kind}
           onClose={() => setEditing(false)}
           onSave={async (next) => {
-            for (const k of ['tim', 'akun'] as const) {
-              await setSetting(db, templateKey(k), next[k] === DEFAULT_TEMPLATES[k] ? '' : next[k])
-            }
+            await saveTemplates(db, next)
             setTpl(next)
             setEditing(false)
             toast('Template tersimpan.')
           }}
         />
       )}
+
+      {editSteps && (
+        <StepsDialog
+          product={editSteps} onClose={() => setEditSteps(null)}
+          onSaved={(had) => { bump(); toast(had ? 'Langkah tersimpan.' : 'Langkah dihapus.') }}
+        />
+      )}
     </div>
   )
 }
 
-function TemplateDialog({ tpl, initialKind, onClose, onSave }: { tpl: Record<TemplateKind, string>; initialKind: TemplateKind; onClose: () => void; onSave: (t: Record<TemplateKind, string>) => Promise<void> }) {
+function StepsDialog({ product, onClose, onSaved }: { product: Product; onClose: () => void; onSaved: (hasSteps: boolean) => void }) {
+  const { db } = useApp()
+  const [draft, setDraft] = useState(product.wa_steps ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const preview = useMemo(
+    () => renderTemplate(draft, {
+      nama: 'Budi', produk: product.name, durasi: '1 bulan', sampai: formatDate(addDays(todayStr(), 30)),
+      link: 'https://contoh.link/undangan', akun: 'akun@contoh.com', password: 'rahasia123',
+    }),
+    [draft, product.name],
+  )
+
+  const save = async (text: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await saveProductSteps(db, product.id, text)
+      onSaved(text.trim() !== '')
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open onClose={onClose} title={`Langkah ${product.name}`} width="max-w-2xl"
+      footer={
+        <>
+          {product.wa_steps && <Button onClick={() => save('')} disabled={busy}>Hapus langkah</Button>}
+          <Button onClick={onClose}>Batal</Button>
+          <Button variant="primary" loading={busy} onClick={() => save(draft)}>Simpan</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="steps-text" className="mb-1.5 block text-[13px] font-medium">Langkah untuk customer</label>
+          <Textarea id="steps-text" rows={9} className="font-sans text-[14px] leading-relaxed" placeholder={STEPS_EXAMPLE} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {STEP_PLACEHOLDERS.map((k) => (
+              <button
+                key={k} type="button" onClick={() => setDraft((d) => `${d}{${k}}`)}
+                className="rounded-md bg-subtle px-2 py-1 font-mono text-[12px] transition-colors hover:bg-line"
+              >
+                {`{${k}}`}
+              </button>
+            ))}
+            {draft.trim() === '' && <Button size="sm" onClick={() => setDraft(STEPS_EXAMPLE)}>Pakai contoh</Button>}
+          </div>
+          <p className="mt-2 text-[13px] text-muted">Teks ini masuk ke bagian {'{langkah}'} di template. Baris yang isiannya kosong otomatis dibuang. Judul seperti "Cara bergabung:" tulis di sini juga.</p>
+        </div>
+        <div>
+          <p className="mb-1.5 text-[13px] font-medium">Contoh hasil</p>
+          {preview ? (
+            <pre aria-label="Contoh hasil langkah" className="max-h-48 overflow-y-auto rounded-lg bg-subtle p-3 font-sans text-[14px] leading-relaxed whitespace-pre-wrap">{preview}</pre>
+          ) : (
+            <p className="rounded-lg bg-subtle p-3 text-muted">Belum ada isi.</p>
+          )}
+        </div>
+        {error && <p role="alert" className="text-danger-text">{error}</p>}
+      </div>
+    </Dialog>
+  )
+}
+
+function TemplateDialog({ tpl, initialKind, onClose, onSave }: { tpl: Templates; initialKind: TemplateKind; onClose: () => void; onSave: (t: Templates) => Promise<void> }) {
   const [kind, setKind] = useState<TemplateKind>(initialKind)
   const [draft, setDraft] = useState(tpl)
   const [busy, setBusy] = useState(false)
@@ -157,7 +243,7 @@ function TemplateDialog({ tpl, initialKind, onClose, onSave }: { tpl: Record<Tem
         />
         <div>
           <p className="mb-2 text-[13px] text-muted">
-            Klik untuk menambah isian di akhir teks. Baris yang isiannya kosong otomatis dibuang dari hasil.
+            Klik untuk menambah isian di akhir teks. Baris yang isiannya kosong otomatis dibuang dari hasil. {'{langkah}'} diisi langkah milik aplikasi yang dipilih.
           </p>
           <div className="flex flex-wrap gap-1.5">
             {PLACEHOLDERS.map((k) => (

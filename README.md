@@ -7,7 +7,7 @@ Nama "Luna Finance" masih sementara. Logonya cuma tulisan, belum ada logo sunggu
 ## Isi rilis pertama
 
 - **Lunatopup > Data Keuangan**: catat saldo akhir tiap channel (Seabank, Flip, Jago, Gopay, Duitku, Digiflazz), profit harian dihitung otomatis dari selisih saldo, dashboard, data utang-piutang, laporan + ekspor CSV.
-- **Lunapremium App**: pricelist, data customer (nama, kontak, email opsional), rekap langganan per aplikasi (termasuk tim Canva), pengingat langganan hampir habis, dan **Template WhatsApp**: isi produk, durasi, dan link tim atau akun, teks pesan langsung jadi dan tinggal disalin. Template bisa diubah. Nomor yang ditempel dari WhatsApp (+62 812-3456) otomatis jadi angka saja.
+- **Lunapremium App**: pricelist, data customer (nama, kontak, email opsional), rekap langganan per aplikasi (termasuk tim Canva), pengingat langganan hampir habis, dan **Template WhatsApp**: isi produk, durasi, dan link tim atau akun, teks pesan langsung jadi dan tinggal disalin. Template bisa diubah, dan tiap aplikasi bisa punya **langkah** sendiri (cara bergabung, cara login, dan sebagainya) yang otomatis masuk ke pesan lewat isian `{langkah}`. Di Rekap, tombol **Pesan WhatsApp** di tiap langganan menyusun pesan dari datanya (nama, aplikasi, tanggal berakhir asli, akun dan password dari PIN, langkah aplikasi, link tim), bisa diedit, disalin, atau langsung dibuka di WhatsApp. Link undangan disimpan **per tim** (tombol Isi link tim di header tim), jadi cukup diisi sekali. Nomor yang ditempel dari WhatsApp (+62 812-3456) otomatis jadi angka saja.
 - **Pribadi**: kalender kegiatan dengan kategori berwarna (Pribadi, Kuliah, Momentum, Mahesa, Lunatopup) dan pengingat H-1 atau 5 jam sebelumnya lewat notifikasi Windows. Agenda hari ini juga tampil di Beranda.
 - **Lunatopup > Data Top Spender**: top spender tiap bulan (peringkat 1 sampai 3) dengan total spend dan kode voucher hadiah. Tombol "Buat kode" memakai pola `T{bulan-1}P{peringkat}XXXX` dan menolak kode yang sudah pernah dipakai. Ada pratinjau email yang disensor untuk poster, hadiah bisa diubah, dan daftar voucher satu bulan bisa disalin sekali klik untuk dipasang di website.
 - **Lunatopup > Data Voucher**: nama voucher default tiap bulan dan berapa kali terpakai, lengkap dengan total, rata-rata, dan bulan terbanyak.
@@ -76,7 +76,7 @@ Buka http://localhost:1420. Di browser data disimpan di localStorage, cocok buat
 ## Perintah lain
 
 ```
-npm test       # 92 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template, backup, sinkron, top spender, voucher, sensor)
+npm test       # 112 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template dan langkah, nomor WhatsApp, backup, sinkron, top spender, voucher, sensor)
 npm run build  # cek tipe + build web
 ```
 
@@ -106,7 +106,7 @@ Setelah secret terisi, buka sekali `https://<project>.supabase.co/functions/v1/t
 
 Perintah bot: `/piutang Budi 200rb`, `/utang Budi 200rb`, `/terima Budi 50rb`, `/bayar Budi 50rb`, `/saldo [nama]`, `/daftar`, `/bantuan`. Catatan lewat bot ikut menghitung profit hari itu setelah aplikasi sinkron.
 
-Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Versi klien dikirim lewat field `v` (0.2.0 tanpa `v`, 0.3.0 = 2, 0.4.0 = 3). Tabel `top_spenders` dan `monthly_vouchers` hanya dikirim ke klien v3. Migrasi ada di `supabase/migrations`.
+Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Versi klien dikirim lewat field `v` (0.2.0 tanpa `v`, 0.3.0 = 2, 0.4.0 = 3, 0.5.0 = 4). Tabel `top_spenders` dan `monthly_vouchers` hanya dikirim ke klien v3 ke atas, tabel `team_links` dan kolom `products.wa_steps` hanya ke klien v4. Kolom baru yang tidak dikenal klien lama tidak ikut dikirim dan tidak ditimpa (parameter `keep` pada `sync_push`). Migrasi ada di `supabase/migrations`.
 
 Aturan konflik sinkron: catatan dengan waktu ubah terbaru menang. Salah catat di bot dikoreksi lewat aplikasi desktop.
 
