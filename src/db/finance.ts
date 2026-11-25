@@ -187,6 +187,8 @@ export interface DaySummary {
   piutangLunas: number
   utangBaru: number
   utangBayar: number
+  /** Biaya operasional yang dibayar dari saldo channel hari itu (sudah dikembalikan ke profit). */
+  operasional: number
   profit: number | null
 }
 
@@ -235,17 +237,73 @@ export async function daySummary(db: Db, date: string): Promise<DaySummary> {
        WHERE d.kind = ? AND p.date = ? AND p.deleted_at IS NULL AND d.deleted_at IS NULL`,
       [kind, date],
     )
-  const [piutangBaru, utangBaru, piutangLunas, utangBayar] = await Promise.all([
+  const [piutangBaru, utangBaru, piutangLunas, utangBayar, operasional] = await Promise.all([
     newDebt('piutang'), newDebt('utang'), paid('piutang'), paid('utang'),
+    sumOne(
+      db,
+      `SELECT SUM(amount) AS s FROM expenses WHERE date = ? AND channel_id IS NOT NULL AND deleted_at IS NULL`,
+      [date],
+    ),
   ])
   const hasRecord = rec.length > 0
   const profit = hasRecord
-    ? computeProfit({ openingTotal, closingTotal, capitalNet, piutangBaru, piutangLunas, utangBaru, utangBayar })
+    ? computeProfit({ openingTotal, closingTotal, capitalNet, piutangBaru, piutangLunas, utangBaru, utangBayar, operasional })
     : null
   return {
     date, hasRecord, openingTotal, closingTotal, delta: closingTotal - openingTotal,
-    capitalNet, piutangBaru, piutangLunas, utangBaru, utangBayar, profit,
+    capitalNet, piutangBaru, piutangLunas, utangBaru, utangBayar, operasional, profit,
   }
+}
+
+/**
+ * Ringkasan semua hari yang punya catatan di rentang tanggal, dengan sedikit query saja.
+ * Hasilnya sama dengan memanggil daySummary per tanggal. Dipakai laporan tahunan yang bisa 365 hari.
+ */
+export async function summariesBetween(db: Db, from: string, to: string): Promise<DaySummary[]> {
+  const recs = await db.all<{ date: string; total: number | null }>(
+    `SELECT r.date, (SELECT SUM(b.balance) FROM daily_balances b WHERE b.record_id = r.id AND b.deleted_at IS NULL) AS total
+     FROM daily_records r WHERE r.deleted_at IS NULL AND r.date BETWEEN ? AND ? ORDER BY r.date, r.rowid`,
+    [from, to],
+  )
+  // Satu catatan per tanggal, sama seperti daySummary yang mengambil satu baris.
+  const records = recs.filter((r, i) => i === 0 || recs[i - 1].date !== r.date)
+  if (!records.length) return []
+
+  const byDate = async (sql: string): Promise<Map<string, number>> => {
+    const rows = await db.all<{ k: string; s: number | null }>(sql, [from, to])
+    return new Map(rows.map((r) => [r.k, r.s ?? 0]))
+  }
+  const [capital, newPiutang, newUtang, paidPiutang, paidUtang, operasional] = await Promise.all([
+    byDate(`SELECT date AS k, SUM(amount) AS s FROM capital_moves WHERE deleted_at IS NULL AND date BETWEEN ? AND ? GROUP BY date`),
+    byDate(`SELECT date AS k, SUM(amount) AS s FROM debts WHERE kind = 'piutang' AND deleted_at IS NULL AND date BETWEEN ? AND ? GROUP BY date`),
+    byDate(`SELECT date AS k, SUM(amount) AS s FROM debts WHERE kind = 'utang' AND deleted_at IS NULL AND date BETWEEN ? AND ? GROUP BY date`),
+    byDate(
+      `SELECT p.date AS k, SUM(p.amount) AS s FROM debt_payments p JOIN debts d ON d.id = p.debt_id
+       WHERE d.kind = 'piutang' AND p.deleted_at IS NULL AND d.deleted_at IS NULL AND p.date BETWEEN ? AND ? GROUP BY p.date`,
+    ),
+    byDate(
+      `SELECT p.date AS k, SUM(p.amount) AS s FROM debt_payments p JOIN debts d ON d.id = p.debt_id
+       WHERE d.kind = 'utang' AND p.deleted_at IS NULL AND d.deleted_at IS NULL AND p.date BETWEEN ? AND ? GROUP BY p.date`,
+    ),
+    byDate(`SELECT date AS k, SUM(amount) AS s FROM expenses WHERE channel_id IS NOT NULL AND deleted_at IS NULL AND date BETWEEN ? AND ? GROUP BY date`),
+  ])
+
+  let openingTotal = await openingTotalFor(db, records[0].date)
+  const out: DaySummary[] = []
+  for (const r of records) {
+    const closingTotal = r.total ?? 0
+    const s: DaySummary = {
+      date: r.date, hasRecord: true, openingTotal, closingTotal, delta: closingTotal - openingTotal,
+      capitalNet: capital.get(r.date) ?? 0,
+      piutangBaru: newPiutang.get(r.date) ?? 0, piutangLunas: paidPiutang.get(r.date) ?? 0,
+      utangBaru: newUtang.get(r.date) ?? 0, utangBayar: paidUtang.get(r.date) ?? 0,
+      operasional: operasional.get(r.date) ?? 0, profit: null,
+    }
+    s.profit = computeProfit({ ...s })
+    out.push(s)
+    openingTotal = closingTotal
+  }
+  return out
 }
 
 /** Profit per tanggal yang punya catatan, dari `from` sampai `to`. */

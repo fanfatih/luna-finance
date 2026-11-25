@@ -84,7 +84,7 @@ export function Bisnis() {
     <Narrow title="Bisnis" subtitle="Pilih bisnis yang mau dibuka.">
       <MenuList
         items={[
-          { title: 'Lunatopup', desc: 'Keuangan harian, utang piutang, dan laporan.', icon: <Wallet className="size-5" />, onClick: () => go({ name: 'lunatopup' }) },
+          { title: 'Lunatopup', desc: 'Keuangan harian, utang piutang, biaya operasional, dan laporan.', icon: <Wallet className="size-5" />, onClick: () => go({ name: 'lunatopup' }) },
           { title: 'Lunapremium App', desc: 'Pricelist, customer, dan rekap langganan aplikasi premium.', icon: <AppWindow className="size-5" />, onClick: () => go({ name: 'premium', tab: 'rekap' }) },
           { title: 'Momentum', desc: 'Belum dibuat.', icon: <Clapperboard className="size-5" />, soon: true },
         ]}
@@ -99,7 +99,7 @@ export function Lunatopup() {
     <Narrow title="Lunatopup" subtitle="Pilih data yang mau dikelola.">
       <MenuList
         items={[
-          { title: 'Data Keuangan', desc: 'Saldo channel, profit harian, utang piutang, laporan.', icon: <TrendingUp className="size-5" />, onClick: () => go({ name: 'keuangan', tab: 'dashboard' }) },
+          { title: 'Data Keuangan', desc: 'Saldo channel, profit harian, utang piutang, biaya operasional, laporan.', icon: <TrendingUp className="size-5" />, onClick: () => go({ name: 'keuangan', tab: 'dashboard' }) },
           { title: 'Data Top Spender', desc: 'Top spender bulanan dan kode voucher hadiahnya.', icon: <Trophy className="size-5" />, onClick: () => go({ name: 'topspender' }) },
           { title: 'Data Voucher', desc: 'Voucher bulanan dan berapa kali terpakai.', icon: <Ticket className="size-5" />, onClick: () => go({ name: 'voucher' }) },
         ]}

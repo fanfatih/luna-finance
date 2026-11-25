@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { HandCoins, Landmark, TrendingUp, Undo2 } from 'lucide-react'
+import { HandCoins, Landmark, Receipt, TrendingUp, Undo2 } from 'lucide-react'
 import { useApp, useAsync } from '@/app/context'
 import { Badge, Button, Card, EmptyState, ErrorState, Loading, Money, PageHeader, Segmented, Stagger, StaggerItem } from '@/components/ui'
 import { daySummary, latestBalances, profitSeries, totalBalanceNow } from '@/db/finance'
 import { debtTotals, listDebts } from '@/db/debts'
+import { monthBurden, upcomingBills } from '@/db/expenses'
 import { addDays, formatDate, formatShort, todayStr } from '@/lib/date'
+import { billStatus } from '@/lib/expense'
 import { rupiah, rupiahCompact } from '@/lib/money'
 
 type Range = '7' | '30' | 'bulan'
@@ -23,22 +25,29 @@ export function Dashboard() {
 
   const data = useAsync(async () => {
     const from = rangeStart(range, today)
-    const [day, series, total, balances, totals, overdue] = await Promise.all([
+    const monthStart = today.slice(0, 8) + '01'
+    const [day, series, total, balances, totals, overdue, burden, bills] = await Promise.all([
       daySummary(db, today), profitSeries(db, from, today), totalBalanceNow(db), latestBalances(db),
       debtTotals(db, today), listDebts(db, today, { state: 'aktif' }),
+      monthBurden(db, today.slice(0, 7)), upcomingBills(db, 3),
     ])
+    const monthSeries = range === 'bulan' ? series : await profitSeries(db, monthStart, today)
+    const monthGross = monthSeries.reduce((a, b) => a + b.profit, 0)
     const map = new Map(series.map((s) => [s.date, s.profit]))
     const days: { date: string; label: string; profit: number | null }[] = []
     for (let d = from; d <= today; d = addDays(d, 1)) {
       days.push({ date: d, label: formatShort(d), profit: map.get(d) ?? null })
     }
-    return { day, series, days, total, balances, totals, overdue: overdue.filter((d) => d.status === 'jatuh-tempo').length }
+    return {
+      day, series, days, total, balances, totals, burden, bills, monthGross,
+      overdue: overdue.filter((d) => d.status === 'jatuh-tempo').length,
+    }
   }, [range])
 
   if (data.loading && !data.data) return <Loading />
   if (data.error) return <ErrorState message={data.error} onRetry={data.reload} />
   if (!data.data) return null
-  const { day, series, days, total, balances, totals, overdue } = data.data
+  const { day, series, days, total, balances, totals, overdue, burden, bills, monthGross } = data.data
 
   const sum = series.reduce((a, b) => a + b.profit, 0)
   const avg = series.length ? Math.round(sum / series.length) : 0
@@ -47,6 +56,16 @@ export function Dashboard() {
   const summary = series.length
     ? `Profit ${rangeLabel}: ${rupiah(sum)} dari ${series.length} hari tercatat.`
     : `Belum ada catatan pada ${rangeLabel}.`
+
+  const corrections = [
+    day.piutangBaru - day.piutangLunas - day.utangBaru + day.utangBayar !== 0 ? 'utang piutang' : '',
+    day.capitalNet !== 0 ? 'modal' : '',
+    day.operasional !== 0 ? 'biaya operasional' : '',
+  ].filter(Boolean)
+  const correctionText = corrections.length
+    ? `, sudah dikoreksi ${corrections.length > 1 ? `${corrections.slice(0, -1).join(', ')} dan ${corrections[corrections.length - 1]}` : corrections[0]}`
+    : ''
+  const monthNet = monthGross - burden.total
 
   const spark = days.map((d) => ({ label: d.label, profit: d.profit ?? 0 })).slice(-14)
 
@@ -64,9 +83,7 @@ export function Dashboard() {
             <>
               <Money value={day.profit ?? 0} signed countUp className="relative mt-1 block text-5xl font-bold" />
               <p className="relative mt-3 text-muted">
-                Saldo berubah <Money value={day.delta} signed />
-                {day.piutangBaru - day.piutangLunas - day.utangBaru + day.utangBayar !== 0 && ', sudah dikoreksi utang piutang'}
-                {day.capitalNet !== 0 && ' dan modal'}.
+                Saldo berubah <Money value={day.delta} signed />{correctionText}.
               </p>
             </>
           ) : (
@@ -159,6 +176,42 @@ export function Dashboard() {
           </div>
         )}
       </Card></StaggerItem>
+
+      <StaggerItem className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Card className="p-6">
+          <p className="flex items-center gap-2 text-muted"><Receipt className="size-4 text-accent-text" aria-hidden="true" />Profit bersih bulan ini</p>
+          <Money value={monthNet} signed countUp className="mt-1 block text-3xl font-bold" />
+          <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 border-t border-line pt-3">
+            <dt className="text-muted">Profit kotor</dt><dd className="text-right"><Money value={monthGross} /></dd>
+            <dt className="text-muted">Biaya operasional</dt><dd className="num text-right">{burden.total > 0 ? `-${rupiah(burden.total)}` : rupiah(0)}</dd>
+          </dl>
+          <p className="mt-2 text-[13px] text-muted">Biaya tahunan dibagi rata ke 12 bulan.</p>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-muted">Tagihan terdekat</p>
+            <Button size="sm" onClick={() => go({ name: 'keuangan', tab: 'operasional' })}>Kelola</Button>
+          </div>
+          {bills.length === 0 ? (
+            <p className="mt-2 text-muted">Belum ada tagihan rutin. Tambahkan hosting, domain, atau langganan supaya diingatkan.</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-line">
+              {bills.map((b) => {
+                const st = billStatus(b.next_due, today)
+                return (
+                  <li key={b.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{b.name}</span>
+                      <span className="text-[13px] text-muted">{formatShort(b.next_due)}, {rupiah(b.amount)}</span>
+                    </span>
+                    <Badge tone={st.state === 'terlambat' ? 'danger' : st.state === 'nanti' ? 'neutral' : 'warn'}>{st.label}</Badge>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Card>
+      </StaggerItem>
 
       <StaggerItem className="mt-4 grid gap-4 sm:grid-cols-2">
         <Card className="p-6">

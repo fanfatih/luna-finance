@@ -4,6 +4,7 @@ import { migrate } from './schema'
 import { SYNC_TABLES, syncNow } from './sync'
 import { addChannel, daySummary, saveDailyRecord } from './finance'
 import { addDebt, addPayment, listDebts } from './debts'
+import { listBills, listExpenses, monthBurden, payBill, saveBill, saveExpense } from './expenses'
 
 /** Server palsu yang meniru fungsi sync di Supabase: LWW per id, kursor (synced_at, id). */
 function fakeServer(key = 'rahasia') {
@@ -101,6 +102,25 @@ describe('sinkron', () => {
     const r = await syncNow(b, cfg, srv.fetch)
     expect(r.pulled).toBe(10)
     expect(await listDebts(b, '2026-11-05')).toHaveLength(5)
+  })
+
+  it('biaya operasional dan tagihan rutin tersinkron, profit dan jatuh tempo sama di perangkat kedua', async () => {
+    const srv = fakeServer()
+    const a = await fresh()
+    const sb = await addChannel(a, 'Seabank', 1_000_000, '2026-11-01')
+    await saveExpense(a, { date: '2026-12-02', name: 'Hosting', category: 'server', amount: 150_000, channelId: sb, spreadMonths: 1 })
+    await saveExpense(a, { date: '2026-12-02', name: 'Domain', category: 'server', amount: 180_000, channelId: null, spreadMonths: 12 })
+    const bill = await saveBill(a, { name: 'Hosting', category: 'server', amount: 150_000, period: 'bulanan', nextDue: '2026-12-05', channelId: sb })
+    await payBill(a, bill, { date: '2026-12-02', amount: 150_000, channelId: sb })
+    await saveDailyRecord(a, '2026-12-02', { [sb]: 700_000 }, null)
+    await syncNow(a, cfg, srv.fetch)
+
+    const b = await fresh()
+    await syncNow(b, cfg, srv.fetch)
+    expect((await listExpenses(b, '2026-12-01', '2026-12-31')).length).toBe(3)
+    expect((await listBills(b))[0].next_due).toBe('2027-01-05')
+    expect((await monthBurden(b, '2027-03')).total).toBe(15_000)
+    expect(await daySummary(b, '2026-12-02')).toEqual(await daySummary(a, '2026-12-02'))
   })
 
   it('kunci salah memberi pesan yang jelas', async () => {

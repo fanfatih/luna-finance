@@ -10,10 +10,12 @@ import {
   listChannels, previousBalances, saveDailyRecord,
 } from '@/db/finance'
 import { listDebts } from '@/db/debts'
+import { deleteExpense, listExpenses } from '@/db/expenses'
 import { addDays, formatDateLong, todayStr } from '@/lib/date'
 import { rupiah, rupiahSigned } from '@/lib/money'
 import { computeProfit, profitWarning } from '@/lib/profit'
 import { CapitalDialog, DebtDialog } from './dialogs'
+import { ExpenseDialog } from './expense-dialogs'
 
 interface Row { raw: string; value: number | null }
 
@@ -27,14 +29,15 @@ export function Catat({ initialDate }: { initialDate?: string }) {
   const [saving, setSaving] = useState(false)
   const [debtOpen, setDebtOpen] = useState(false)
   const [capOpen, setCapOpen] = useState(false)
+  const [expOpen, setExpOpen] = useState(false)
   const [delRecord, setDelRecord] = useState(false)
 
   const data = useAsync(async () => {
-    const [channels, rec, prev, summary, moves, debts, avg] = await Promise.all([
+    const [channels, rec, prev, summary, moves, debts, avg, expenses] = await Promise.all([
       listChannels(db), getDailyRecord(db, date), previousBalances(db, date), daySummary(db, date),
-      listCapitalMoves(db, date), listDebts(db, date), avgProfit7(db, date),
+      listCapitalMoves(db, date), listDebts(db, date), avgProfit7(db, date), listExpenses(db, date, date),
     ])
-    return { channels, rec, prev, summary, moves, debts: debts.filter((d) => d.date === date), avg }
+    return { channels, rec, prev, summary, moves, debts: debts.filter((d) => d.date === date), avg, expenses }
   }, [date])
 
   // Isi kolom saat tanggal atau data dimuat: catatan yang ada, atau saldo hari sebelumnya.
@@ -69,7 +72,7 @@ export function Catat({ initialDate }: { initialDate?: string }) {
   if (data.loading && !data.data) return <Loading />
   if (data.error) return <ErrorState message={data.error} onRetry={data.reload} />
   if (!data.data) return null
-  const { channels, rec, prev, summary, moves, debts } = data.data
+  const { channels, rec, prev, summary, moves, debts, expenses } = data.data
 
   if (channels.length === 0) {
     return (
@@ -104,13 +107,14 @@ export function Catat({ initialDate }: { initialDate?: string }) {
     ['Piutang dibayar kembali', -summary.piutangLunas],
     ['Utang baru', -summary.utangBaru],
     ['Utang dibayar', summary.utangBayar],
+    ['Biaya operasional', summary.operasional],
   ] as const
 
   return (
     <div>
       <PageHeader
         title="Catat Keuangan Harian"
-        subtitle="Isi saldo akhir tiap channel. Profit dihitung dari selisih saldo, tanpa uang utang dan modal."
+        subtitle="Isi saldo akhir tiap channel. Profit dihitung dari selisih saldo, tanpa uang utang, modal, dan biaya operasional."
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -159,11 +163,13 @@ export function Catat({ initialDate }: { initialDate?: string }) {
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => setDebtOpen(true)}>Catat utang atau piutang</Button>
                 <Button size="sm" onClick={() => setCapOpen(true)}>Setor atau tarik modal</Button>
+                <Button size="sm" onClick={() => setExpOpen(true)}>Catat biaya operasional</Button>
               </div>
             </div>
-            {moves.length === 0 && debts.length === 0 ? (
+            {moves.length === 0 && debts.length === 0 && expenses.length === 0 ? (
               <p className="text-muted">
-                Belum ada. Kalau uang usaha dipakai pribadi atau dipinjam orang, catat sebagai piutang supaya tidak dianggap rugi.
+                Belum ada. Uang usaha yang dipakai pribadi atau dipinjam orang dicatat sebagai piutang, dan biaya seperti server
+                atau iklan dicatat sebagai biaya operasional, supaya tidak dianggap rugi.
               </p>
             ) : (
               <ul className="divide-y divide-line">
@@ -171,6 +177,17 @@ export function Catat({ initialDate }: { initialDate?: string }) {
                   <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
                     <span>{d.kind === 'piutang' ? 'Piutang' : 'Utang'} {d.contact_name}{d.note ? `, ${d.note}` : ''}</span>
                     <Money value={d.amount} />
+                  </li>
+                ))}
+                {expenses.map((x) => (
+                  <li key={x.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <span>Biaya {x.name}{x.channel_id ? `, dari saldo ${x.channel_name ?? 'channel'}` : ', di luar saldo'}</span>
+                    <span className="flex items-center gap-1">
+                      <Money value={x.amount} />
+                      <IconButton label={`Hapus biaya ${x.name}`} className="size-8" onClick={async () => { await deleteExpense(db, x.id); bump() }}>
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </IconButton>
+                    </span>
                   </li>
                 ))}
                 {moves.map((m) => (
@@ -227,6 +244,7 @@ export function Catat({ initialDate }: { initialDate?: string }) {
 
       <DebtDialog open={debtOpen} onClose={() => setDebtOpen(false)} defaultDate={date} />
       <CapitalDialog open={capOpen} onClose={() => setCapOpen(false)} defaultDate={date} />
+      <ExpenseDialog open={expOpen} onClose={() => setExpOpen(false)} defaultDate={date} />
       <ConfirmDialog
         open={delRecord} onClose={() => setDelRecord(false)} danger
         title="Hapus catatan harian?" confirmLabel="Hapus catatan"

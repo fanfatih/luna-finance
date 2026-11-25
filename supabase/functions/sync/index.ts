@@ -5,11 +5,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const TABLES = [
   'channels', 'daily_records', 'daily_balances', 'capital_moves', 'contacts',
   'debts', 'debt_payments', 'products', 'product_variants', 'customers', 'subscriptions', 'events',
-  'top_spenders', 'monthly_vouchers', 'team_links',
+  'top_spenders', 'monthly_vouchers', 'team_links', 'expenses', 'recurring_expenses',
 ]
 // Versi klien (field `v`) paling rendah yang mengenal tabel itu. Klien lama tidak boleh menerimanya.
-// v2 = aplikasi 0.3.0, v3 = aplikasi 0.4.0, v4 = aplikasi 0.5.0. Klien tanpa `v` adalah 0.2.0.
-const MIN_VERSION: Record<string, number> = { events: 2, top_spenders: 3, monthly_vouchers: 3, team_links: 4 }
+// v2 = aplikasi 0.3.0, v3 = aplikasi 0.4.0, v4 = aplikasi 0.5.0, v5 = aplikasi 0.6.0. Klien tanpa `v` adalah 0.2.0.
+const MIN_VERSION: Record<string, number> = {
+  events: 2, top_spenders: 3, monthly_vouchers: 3, team_links: 4, expenses: 5, recurring_expenses: 5,
+}
 // Kolom yang baru ada sejak versi tertentu. Klien yang lebih lama tidak menerimanya dan tidak boleh menimpanya.
 const NEW_COLUMNS: Record<string, Record<string, number>> = { customers: { email: 2 }, products: { wa_steps: 4 } }
 const BATCH = 1000

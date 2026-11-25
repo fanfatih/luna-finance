@@ -93,6 +93,20 @@ const MIGRATIONS: string[][] = [
       updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
     `CREATE INDEX IF NOT EXISTS idx_team_links_product ON team_links(product_id)`,
   ],
+  // v5: biaya operasional dan tagihan rutin. channel_id kosong berarti dibayar di luar saldo aplikasi.
+  // spread_months: 1 = dihitung di bulan dibayar, 12 = dibagi rata ke 12 bulan (biaya tahunan).
+  [
+    `CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY, date TEXT NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'lain',
+      amount INTEGER NOT NULL, channel_id TEXT, spread_months INTEGER NOT NULL DEFAULT 1,
+      recurring_id TEXT, note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`,
+    `CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'lain', amount INTEGER NOT NULL,
+      period TEXT NOT NULL CHECK (period IN ('bulanan','tahunan')), next_due TEXT NOT NULL,
+      anchor_day INTEGER NOT NULL, channel_id TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_expenses(next_due)`,
+  ],
 ]
 
 export async function migrate(db: Db): Promise<void> {

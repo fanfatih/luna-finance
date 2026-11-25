@@ -11,6 +11,7 @@ Nama "Luna Finance" masih sementara. Logonya cuma tulisan, belum ada logo sunggu
 - **Pribadi**: kalender kegiatan dengan kategori berwarna (Pribadi, Kuliah, Momentum, Mahesa, Lunatopup) dan pengingat H-1 atau 5 jam sebelumnya lewat notifikasi Windows. Agenda hari ini juga tampil di Beranda.
 - **Lunatopup > Data Top Spender**: top spender tiap bulan (peringkat 1 sampai 3) dengan total spend dan kode voucher hadiah. Tombol "Buat kode" memakai pola `T{bulan-1}P{peringkat}XXXX` dan menolak kode yang sudah pernah dipakai. Ada pratinjau email yang disensor untuk poster, hadiah bisa diubah, dan daftar voucher satu bulan bisa disalin sekali klik untuk dipasang di website.
 - **Lunatopup > Data Voucher**: nama voucher default tiap bulan dan berapa kali terpakai, lengkap dengan total, rata-rata, dan bulan terbanyak.
+- **Lunatopup > Data Keuangan > Operasional**: catat biaya usaha (server, iklan, langganan, gaji, dan lain-lain) satu kali, bulanan, atau tahunan, lengkap dengan **tagihan rutin**. Tagihan rutin diingatkan lewat notifikasi desktop 3 hari sebelum dan di hari jatuh tempo, dan tombol **Sudah dibayar** langsung mencatat biayanya lalu memajukan jatuh tempo berikutnya (tanggal 31 kembali ke 31 setelah bulan yang pendek). Tiap biaya dipilih dibayar dari saldo channel mana, atau **di luar saldo aplikasi**. Biaya tahunan dibagi rata ke 12 bulan di laporan. Hanya untuk Lunatopup, belum ada pemisahan per bisnis.
 - PIN, tema terang/gelap/ikut Windows, cadangan harian otomatis (30 terakhir), backup dan restore manual, ikon tray.
 - **Buka otomatis** bersama Windows (ala Steam): jendela langsung terbuka saat Windows menyala, supaya ingat mencatat. Diatur di Pengaturan, Aplikasi desktop. Kalau gagal, pesan error aslinya ditampilkan di sana.
 - **Notifikasi desktop Windows** untuk pengingat kegiatan dan langganan customer yang hampir habis. Tombol **Tes notifikasi** di Pengaturan untuk mengecek.
@@ -31,6 +32,22 @@ Dihitung saat ditampilkan, tidak disimpan. Contoh: saldo awal Rp1.000.000, akhir
 
 Uang utang-piutang dan setor/tarik modal tidak ikut dihitung sebagai profit.
 
+### Biaya operasional
+
+Biaya yang dibayar **dari saldo channel** menurunkan saldo, jadi di rumus di atas ditambahkan kembali supaya profit harian tetap murni hasil jualan:
+
+```
+Profit = ... + biaya operasional yang dibayar dari saldo channel pada hari itu
+```
+
+Biaya yang dibayar **di luar saldo aplikasi** tidak mengubah saldo, jadi tidak ikut rumus harian sama sekali. Pengurangannya muncul di Laporan dan Dashboard sebagai **profit bersih**:
+
+```
+Profit bersih bulan = jumlah profit harian (profit kotor) - beban operasional bulan itu
+```
+
+Biaya tahunan (misalnya domain) dibagi rata ke 12 bulan mulai bulan dibayar, sisa pembagian masuk ke bulan-bulan paling awal. Laporan punya tampilan **Bulanan** dan **Tahunan**.
+
 ## Cara paling gampang: rilis lewat GitHub (tanpa install apa-apa)
 
 1. Kode ada di repo GitHub (repo harus **public** supaya update otomatis bisa jalan).
@@ -44,7 +61,7 @@ Prasyarat sekali saja: tambah secret `TAURI_SIGNING_PRIVATE_KEY` di Settings rep
 
 Aplikasi mengecek Releases saat dibuka. Kalau ada versi baru, muncul pemberitahuan, lalu pasang lewat **Pengaturan, Pembaruan aplikasi, Pasang dan mulai ulang**. Data tidak terhapus.
 
-Untuk merilis versi baru: naikkan angka versi di `package.json`, `src-tauri/Cargo.toml`, dan `src-tauri/tauri.conf.json` (ketiganya sama), push, lalu jalankan workflow **Rilis Windows**.
+Untuk merilis versi baru: naikkan angka versi di `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, dan `src-tauri/tauri.conf.json` (semuanya sama), push, lalu jalankan workflow **Rilis Windows**.
 
 ## Build di laptop sendiri
 
@@ -76,7 +93,7 @@ Buka http://localhost:1420. Di browser data disimpan di localStorage, cocok buat
 ## Perintah lain
 
 ```
-npm test       # 112 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template dan langkah, nomor WhatsApp, backup, sinkron, top spender, voucher, sensor)
+npm test       # 148 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template dan langkah, nomor WhatsApp, backup, sinkron, top spender, voucher, sensor, biaya operasional dan tagihan rutin)
 npm run build  # cek tipe + build web
 ```
 
@@ -106,7 +123,7 @@ Setelah secret terisi, buka sekali `https://<project>.supabase.co/functions/v1/t
 
 Perintah bot: `/piutang Budi 200rb`, `/utang Budi 200rb`, `/terima Budi 50rb`, `/bayar Budi 50rb`, `/saldo [nama]`, `/daftar`, `/bantuan`. Catatan lewat bot ikut menghitung profit hari itu setelah aplikasi sinkron.
 
-Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Versi klien dikirim lewat field `v` (0.2.0 tanpa `v`, 0.3.0 = 2, 0.4.0 = 3, 0.5.0 = 4). Tabel `top_spenders` dan `monthly_vouchers` hanya dikirim ke klien v3 ke atas, tabel `team_links` dan kolom `products.wa_steps` hanya ke klien v4. Kolom baru yang tidak dikenal klien lama tidak ikut dikirim dan tidak ditimpa (parameter `keep` pada `sync_push`). Migrasi ada di `supabase/migrations`.
+Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Versi klien dikirim lewat field `v` (0.2.0 tanpa `v`, 0.3.0 = 2, 0.4.0 = 3, 0.5.0 = 4, 0.6.0 = 5). Tabel `top_spenders` dan `monthly_vouchers` hanya dikirim ke klien v3 ke atas, tabel `team_links` dan kolom `products.wa_steps` hanya ke klien v4, tabel `expenses` dan `recurring_expenses` hanya ke klien v5. Kolom baru yang tidak dikenal klien lama tidak ikut dikirim dan tidak ditimpa (parameter `keep` pada `sync_push`). Migrasi ada di `supabase/migrations`.
 
 Aturan konflik sinkron: catatan dengan waktu ubah terbaru menang. Salah catat di bot dikoreksi lewat aplikasi desktop.
 

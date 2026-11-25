@@ -64,6 +64,11 @@ describe('computeProfit', () => {
     utangBayar: 0,
   }
 
+  it('biaya operasional dari saldo dikembalikan, tanpa nilai dianggap nol', () => {
+    expect(computeProfit({ ...base, closingTotal: 1_350_000, operasional: 150_000 })).toBe(500_000)
+    expect(computeProfit({ ...base, closingTotal: 1_350_000, operasional: 0 })).toBe(350_000)
+    expect(computeProfit({ ...base, closingTotal: 1_350_000 })).toBe(350_000)
+  })
   it('contoh PRD: pakai pribadi 200rb dicatat piutang -> profit 50rb', () => {
     // omzet 500rb, modal produk 450rb, 200rb dipakai pribadi, saldo akhir 850rb
     expect(computeProfit({ ...base, closingTotal: 850_000, piutangBaru: 200_000 })).toBe(50_000)

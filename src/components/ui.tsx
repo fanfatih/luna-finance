@@ -236,7 +236,8 @@ function useCountUp(value: number, enabled: boolean): number {
     })
     return () => controls.stop()
   }, [value, skip])
-  return shown
+  // Tanpa animasi, angka langsung mengikuti nilai terbaru (tidak menunggu effect, jadi tidak ada frame berisi angka lama).
+  return skip ? value : shown
 }
 
 export function Money({

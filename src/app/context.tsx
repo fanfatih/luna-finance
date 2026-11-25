@@ -7,7 +7,7 @@ import type { PinRecord } from '@/lib/crypto'
 
 /* ---------- Rute ---------- */
 
-export type KeuanganTab = 'dashboard' | 'catat' | 'utang' | 'laporan'
+export type KeuanganTab = 'dashboard' | 'catat' | 'utang' | 'operasional' | 'laporan'
 export type PremiumTab = 'pricelist' | 'customer' | 'rekap' | 'template'
 
 export type Route =
