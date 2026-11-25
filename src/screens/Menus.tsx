@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AppWindow, BellRing, CalendarDays, ChevronRight, Clapperboard, HandCoins, Ticket, TrendingUp, Trophy, UserRound, Wallet } from 'lucide-react'
+import { AppWindow, BellRing, CalendarDays, ChevronRight, Clapperboard, HandCoins, Landmark, Ticket, TrendingUp, Trophy, UserRound, Wallet } from 'lucide-react'
 import { useApp, useAsync } from '@/app/context'
 import { Badge, Button, Money, Stagger, StaggerItem } from '@/components/ui'
 import { daySummary } from '@/db/finance'
@@ -86,7 +86,8 @@ export function Bisnis() {
         items={[
           { title: 'Lunatopup', desc: 'Keuangan harian, utang piutang, biaya operasional, dan laporan.', icon: <Wallet className="size-5" />, onClick: () => go({ name: 'lunatopup' }) },
           { title: 'Lunapremium App', desc: 'Pricelist, customer, dan rekap langganan aplikasi premium.', icon: <AppWindow className="size-5" />, onClick: () => go({ name: 'premium', tab: 'rekap' }) },
-          { title: 'Momentum', desc: 'Belum dibuat.', icon: <Clapperboard className="size-5" />, soon: true },
+          { title: 'Momentum', desc: 'Project klien, keuangan, invoice, dan laporan.', icon: <Clapperboard className="size-5" />, onClick: () => go({ name: 'momentum', tab: 'dashboard' }) },
+          { title: 'Mahesa', desc: 'Belum dibuat.', icon: <Landmark className="size-5" />, soon: true },
         ]}
       />
     </Narrow>
@@ -212,7 +213,7 @@ export function Beranda() {
                   Bisnis
                   <ChevronRight className="size-5 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
                 </span>
-                <span className="mt-1 block max-w-sm text-white">Lunatopup dan Lunapremium: keuangan, utang piutang, dan langganan.</span>
+                <span className="mt-1 block max-w-sm text-white">Lunatopup, Lunapremium, dan Momentum: keuangan, langganan, project, dan invoice.</span>
               </span>
             </button>
             <button

@@ -9,6 +9,7 @@ import type { PinRecord } from '@/lib/crypto'
 
 export type KeuanganTab = 'dashboard' | 'catat' | 'utang' | 'operasional' | 'laporan'
 export type PremiumTab = 'pricelist' | 'customer' | 'rekap' | 'template'
+export type MomentumTab = 'dashboard' | 'project' | 'keuangan' | 'invoice' | 'laporan'
 
 export type Route =
   | { name: 'beranda' }
@@ -16,6 +17,7 @@ export type Route =
   | { name: 'lunatopup' }
   | { name: 'keuangan'; tab: KeuanganTab; date?: string }
   | { name: 'premium'; tab: PremiumTab }
+  | { name: 'momentum'; tab: MomentumTab; /** Project yang langsung dibuka di tab Project. */ id?: string }
   | { name: 'pribadi' }
   | { name: 'topspender' }
   | { name: 'voucher' }
@@ -32,6 +34,7 @@ export function parentOf(r: Route): Route | null {
     case 'keuangan':
       return { name: 'lunatopup' }
     case 'premium':
+    case 'momentum':
       return { name: 'bisnis' }
     case 'pribadi':
       return { name: 'beranda' }

@@ -4,6 +4,7 @@ import { useApp } from '@/app/context'
 import { useToast } from '@/components/ui'
 import { collectDueReminders, reminderText } from '@/db/events'
 import { billReminderText, collectDueBillReminders } from '@/db/expenses'
+import { collectInvoiceReminders, invoiceReminderText } from '@/db/momentum'
 import { notifyExpiring, notifyNative } from './reminders'
 
 const EVERY_MS = 60_000
@@ -12,7 +13,7 @@ const EXPIRY_FROM_HOUR = 8
 
 /**
  * Cek pengingat saat aplikasi dibuka (menyusul yang terlewat) lalu tiap menit: kegiatan di kalender,
- * tagihan rutin yang jatuh tempo, dan langganan yang hampir habis. Semuanya muncul sebagai notifikasi desktop
+ * tagihan rutin yang jatuh tempo, invoice klien Momentum yang menunggu bayar, dan langganan yang hampir habis. Semuanya muncul sebagai notifikasi desktop
  * Windows, jadi tetap terlihat saat jendela disembunyikan ke tray. Detak dari sisi Rust ikut memicu pengecekan karena
  * timer webview diperlambat saat jendela tersembunyi.
  */
@@ -45,6 +46,13 @@ export function useReminders() {
         for (const r of await collectDueBillReminders(db, now)) {
           if (!alive) return
           const { title, body } = billReminderText(r)
+          const native = await notifyNative(title, body)
+          if (!native || document.visibilityState === 'visible') toast(`${title}. ${body}`)
+        }
+
+        for (const r of await collectInvoiceReminders(db, now)) {
+          if (!alive) return
+          const { title, body } = invoiceReminderText(r)
           const native = await notifyNative(title, body)
           if (!native || document.visibilityState === 'visible') toast(`${title}. ${body}`)
         }

@@ -1,7 +1,7 @@
 {
   "name": "luna-finance",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-sql": "^2.0.0",
     "@tauri-apps/plugin-updater": "^2.14.1",
     "clsx": "^2.1.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.468.0",
     "motion": "^12.0.0",
     "react": "^18.3.1",

@@ -12,6 +12,7 @@ Nama "Luna Finance" masih sementara. Logonya cuma tulisan, belum ada logo sunggu
 - **Lunatopup > Data Top Spender**: top spender tiap bulan (peringkat 1 sampai 3) dengan total spend dan kode voucher hadiah. Tombol "Buat kode" memakai pola `T{bulan-1}P{peringkat}XXXX` dan menolak kode yang sudah pernah dipakai. Ada pratinjau email yang disensor untuk poster, hadiah bisa diubah, dan daftar voucher satu bulan bisa disalin sekali klik untuk dipasang di website.
 - **Lunatopup > Data Voucher**: nama voucher default tiap bulan dan berapa kali terpakai, lengkap dengan total, rata-rata, dan bulan terbanyak.
 - **Lunatopup > Data Keuangan > Operasional**: catat biaya usaha (server, iklan, langganan, gaji, dan lain-lain) satu kali, bulanan, atau tahunan, lengkap dengan **tagihan rutin**. Tagihan rutin diingatkan lewat notifikasi desktop 3 hari sebelum dan di hari jatuh tempo, dan tombol **Sudah dibayar** langsung mencatat biayanya lalu memajukan jatuh tempo berikutnya (tanggal 31 kembali ke 31 setelah bulan yang pendek). Tiap biaya dipilih dibayar dari saldo channel mana, atau **di luar saldo aplikasi**. Biaya tahunan dibagi rata ke 12 bulan di laporan. Hanya untuk Lunatopup, belum ada pemisahan per bisnis.
+- **Bisnis > Momentum**: project klien dari inquiry sampai selesai (klien, tanggal acara, lokasi, tenggat serah hasil, paket dan item, diskon), arus kas (uang masuk dari klien dan biaya project atau umum), **invoice klien** (DP 30%, pelunasan, pembayaran penuh, atau termin lain) dengan nomor otomatis `INV/MOM/tahun/bulan/urut`, **PDF invoice** yang dibuat di komputer sendiri, teks **WhatsApp** siap kirim, dan laporan bulanan atau tahunan + ekspor CSV. Menandai invoice lunas otomatis mencatat pembayarannya di project. Acara dan tenggat serah hasil otomatis masuk ke kalender Pribadi (kategori Momentum). Invoice yang sudah dikirim diingatkan lewat notifikasi desktop H-1, di hari jatuh tempo, lalu tiap hari bila terlambat. Nama usaha, alamat, rekening, logo, awalan nomor, dan persen DP diatur di **Identitas invoice**.
 - PIN, tema terang/gelap/ikut Windows, cadangan harian otomatis (30 terakhir), backup dan restore manual, ikon tray.
 - **Buka otomatis** bersama Windows (ala Steam): jendela langsung terbuka saat Windows menyala, supaya ingat mencatat. Diatur di Pengaturan, Aplikasi desktop. Kalau gagal, pesan error aslinya ditampilkan di sana.
 - **Notifikasi desktop Windows** untuk pengingat kegiatan dan langganan customer yang hampir habis. Tombol **Tes notifikasi** di Pengaturan untuk mengecek.
@@ -19,7 +20,7 @@ Nama "Luna Finance" masih sementara. Logonya cuma tulisan, belum ada logo sunggu
 - **Sinkron cloud** ke Supabase milikmu sendiri (project `luna-finance`), otomatis saat aplikasi dibuka dan tiap 10 menit, plus tombol **Perbarui data** di pojok atas.
 - **Bot Telegram** untuk catat dan cek utang-piutang dari HP.
 
-Menu lain (Momentum) tampil sebagai "Segera hadir". Poster Top Spender dan Voucher bulanan tetap dibuat lewat chat Claude, aplikasi hanya mencatat datanya.
+Menu Mahesa tampil sebagai "Segera hadir". Poster Top Spender dan Voucher bulanan tetap dibuat lewat chat Claude, aplikasi hanya mencatat datanya.
 
 ## Rumus profit
 
@@ -90,10 +91,25 @@ npm run dev
 
 Buka http://localhost:1420. Di browser data disimpan di localStorage, cocok buat coba-coba. Tombol jendela, notifikasi Windows, buka otomatis, dan cadangan harian hanya aktif di aplikasi desktop.
 
+### Momentum
+
+```
+Nilai project   = jumlah (jumlah x harga satuan) semua item - diskon
+Sisa tagihan    = nilai project - pembayaran klien yang sudah masuk
+DP              = persen DP (bawaan 30%) x nilai project, dibulatkan ke rupiah
+Pelunasan       = sisa tagihan saat invoice dibuat
+Laba project    = nilai project - biaya yang dikaitkan ke project
+Laba bersih     = uang masuk bulan itu - biaya bulan itu   (per tanggal bayar)
+```
+
+Status bayar klien (Belum bayar, Sudah DP, Lunas, Kelebihan bayar) dihitung dari pembayaran yang tercatat, tidak disimpan. Tahap project hanya Inquiry, Booking, Produksi, Selesai, atau Batal. Invoice menyimpan **salinan** isi project saat dibuat, jadi invoice yang sudah dikirim tidak berubah diam-diam bila project diubah. Invoice draft bisa diperbarui dari project lewat kotak centang di form ubah. Project yang sudah punya pembayaran atau biaya tidak bisa dihapus, ubah tahapnya jadi Batal. Biaya project selalu dihitung penuh di bulan dibayar, biaya umum boleh dibagi 12 bulan.
+
+Identitas invoice (termasuk logo) disimpan di komputer ini dan ikut berkas cadangan, tapi **tidak ikut sinkron cloud**. Di komputer lain perlu diisi sekali lagi.
+
 ## Perintah lain
 
 ```
-npm test       # 148 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template dan langkah, nomor WhatsApp, backup, sinkron, top spender, voucher, sensor, biaya operasional dan tagihan rutin)
+npm test       # 215 tes (parser nominal, profit, utang, premium, kalender dan pengingat, template dan langkah, nomor WhatsApp, backup, sinkron, top spender, voucher, sensor, biaya operasional dan tagihan rutin, Momentum: project, pembayaran, invoice, pengingat, PDF, CSV)
 npm run build  # cek tipe + build web
 ```
 
@@ -123,12 +139,13 @@ Setelah secret terisi, buka sekali `https://<project>.supabase.co/functions/v1/t
 
 Perintah bot: `/piutang Budi 200rb`, `/utang Budi 200rb`, `/terima Budi 50rb`, `/bayar Budi 50rb`, `/saldo [nama]`, `/daftar`, `/bantuan`. Catatan lewat bot ikut menghitung profit hari itu setelah aplikasi sinkron.
 
-Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Versi klien dikirim lewat field `v` (0.2.0 tanpa `v`, 0.3.0 = 2, 0.4.0 = 3, 0.5.0 = 4, 0.6.0 = 5). Tabel `top_spenders` dan `monthly_vouchers` hanya dikirim ke klien v3 ke atas, tabel `team_links` dan kolom `products.wa_steps` hanya ke klien v4, tabel `expenses` dan `recurring_expenses` hanya ke klien v5. Kolom baru yang tidak dikenal klien lama tidak ikut dikirim dan tidak ditimpa (parameter `keep` pada `sync_push`). Migrasi ada di `supabase/migrations`.
+Klien lama (0.2.0) tetap bisa sinkron: fungsi `sync` mengenali versi klien lewat field `v`, tidak mengirim tabel `events` dan kolom `email` ke klien lama, dan tidak membiarkannya menimpa email yang sudah terisi. Versi klien dikirim lewat field `v` (0.2.0 tanpa `v`, 0.3.0 = 2, 0.4.0 = 3, 0.5.0 = 4, 0.6.0 = 5, 0.7.0 = 6). Tabel `top_spenders` dan `monthly_vouchers` hanya dikirim ke klien v3 ke atas, tabel `team_links` dan kolom `products.wa_steps` hanya ke klien v4, tabel `expenses` dan `recurring_expenses` hanya ke klien v5, lima tabel Momentum (`mom_projects`, `mom_items`, `mom_payments`, `mom_invoices`, `mom_expenses`) hanya ke klien v6. Kolom baru yang tidak dikenal klien lama tidak ikut dikirim dan tidak ditimpa (parameter `keep` pada `sync_push`). Migrasi ada di `supabase/migrations`.
 
 Aturan konflik sinkron: catatan dengan waktu ubah terbaru menang. Salah catat di bot dikoreksi lewat aplikasi desktop.
 
 ## Belum ada
 
-- Logo dan nama final.
+- Logo dan nama final untuk aplikasi ini sendiri (logo invoice Momentum bisa diunggah di Identitas invoice).
+- Momentum: data worker, penugasan, dan invoice atau slip honor worker belum ada (direncanakan di 0.8.0), begitu juga tagihan rutin khusus Momentum. Bot Telegram belum menyentuh Momentum.
 - Bot belum bisa mengisi saldo channel atau menampilkan profit, hanya utang-piutang.
 - Aplikasi ini belum pernah dijalankan di Windows asli. Seluruh logika dan tampilan sudah dites di browser, tapi bagian cangkang desktop (tray, buka otomatis, notifikasi, jendela kustom) baru bisa dibuktikan setelah build pertama di Windows. Kalau ada yang error di sana, kirim pesan errornya.

@@ -14,6 +14,7 @@ import { Beranda, Bisnis, Lunatopup } from '@/screens/Menus'
 import { Settings } from '@/screens/Settings'
 import { Setup } from '@/screens/Setup'
 import { Keuangan } from '@/screens/keuangan'
+import { Momentum } from '@/screens/momentum'
 import { Premium } from '@/screens/premium'
 import { Pribadi } from '@/screens/pribadi'
 import { TopSpenderPage } from '@/screens/lunatopup/TopSpender'
@@ -107,6 +108,7 @@ function Ready({ initialKey }: { initialKey: CryptoKey | null }) {
       {route.name === 'lunatopup' && <Lunatopup />}
       {route.name === 'keuangan' && <Keuangan tab={route.tab} date={route.date} />}
       {route.name === 'premium' && <Premium tab={route.tab} />}
+      {route.name === 'momentum' && <Momentum tab={route.tab} projectId={route.id} />}
       {route.name === 'pribadi' && <Pribadi />}
       {route.name === 'topspender' && <TopSpenderPage />}
       {route.name === 'voucher' && <VouchersPage />}

@@ -12,6 +12,7 @@ export function crumb(r: Route): string {
     case 'lunatopup': return 'Lunatopup'
     case 'keuangan': return 'Data Keuangan'
     case 'premium': return 'Lunapremium App'
+    case 'momentum': return 'Momentum'
     case 'pribadi': return 'Pribadi'
     case 'topspender': return 'Data Top Spender'
     case 'voucher': return 'Data Voucher'

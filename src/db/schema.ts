@@ -107,6 +107,42 @@ const MIGRATIONS: string[][] = [
       anchor_day INTEGER NOT NULL, channel_id TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
     `CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_expenses(next_due)`,
   ],
+  // v6: Momentum. Project klien, item tagihannya, pembayaran klien, invoice, dan biaya.
+  // event_id dan deliver_event_id menunjuk kegiatan di kalender Pribadi yang dibuat otomatis dari project.
+  // Invoice menyimpan salinan data project (snapshot) supaya invoice yang sudah dikirim tidak berubah.
+  [
+    `CREATE TABLE IF NOT EXISTS mom_projects (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, client_name TEXT NOT NULL, client_contact TEXT, client_address TEXT,
+      event_date TEXT, venue TEXT, deliver_by TEXT,
+      stage TEXT NOT NULL DEFAULT 'inquiry' CHECK (stage IN ('inquiry','booking','produksi','selesai','batal')),
+      discount INTEGER NOT NULL DEFAULT 0, note TEXT, event_id TEXT, deliver_event_id TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_projects_event ON mom_projects(event_date)`,
+    `CREATE TABLE IF NOT EXISTS mom_items (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, qty INTEGER NOT NULL DEFAULT 1,
+      unit_price INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_items_project ON mom_items(project_id)`,
+    `CREATE TABLE IF NOT EXISTS mom_payments (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL, date TEXT NOT NULL, amount INTEGER NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'termin' CHECK (kind IN ('dp','termin','pelunasan','lain')),
+      invoice_id TEXT, note TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_payments_project ON mom_payments(project_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_payments_date ON mom_payments(date)`,
+    `CREATE TABLE IF NOT EXISTS mom_invoices (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL, number TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('dp','pelunasan','penuh','kustom')),
+      issue_date TEXT NOT NULL, due_date TEXT NOT NULL, amount INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','terkirim','lunas','batal')),
+      note TEXT, snapshot TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_invoices_project ON mom_invoices(project_id)`,
+    `CREATE TABLE IF NOT EXISTS mom_expenses (
+      id TEXT PRIMARY KEY, date TEXT NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'lain',
+      amount INTEGER NOT NULL, project_id TEXT, spread_months INTEGER NOT NULL DEFAULT 1, note TEXT,
+      updated_at INTEGER NOT NULL, deleted_at INTEGER)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_expenses_date ON mom_expenses(date)`,
+    `CREATE INDEX IF NOT EXISTS idx_mom_expenses_project ON mom_expenses(project_id)`,
+  ],
 ]
 
 export async function migrate(db: Db): Promise<void> {
